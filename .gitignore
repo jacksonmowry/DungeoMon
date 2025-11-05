@@ -1,0 +1,11 @@
+.DS_Store
+.idea
+*.log
+tmp/
+
+
+bin/*
+!bin/.keep
+
+obj/*
+!obj/.keep
