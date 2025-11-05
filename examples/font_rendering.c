@@ -37,14 +37,14 @@ int main(int argc, char* argv[]) {
     r.draw_rect(r.state, (Vec2){.x = 0, .y = 0},
                 tile_coords(VEC2(width_in_tiles - 1, height_in_tiles - 1),
                             tile_dim, SE),
-                WHITE);
+                RGBA(WHITE));
 
     // We're starting both x&y at 1 to leave padding between the character
     // and the border
     Vec2 pos = {.x = 1, .y = 1};
     for (char c = '!'; c <= '~'; c++) {
-        char s[2] = {c};
-        r.draw_text(r.state, &c, tile_coords(pos, tile_dim, NW), WHITE, 1);
+        char s[2] = {c, '\0'};
+        r.draw_text(r.state, s, tile_coords(pos, tile_dim, NW), RGBA(WHITE), 1);
 
         pos.x++;
         if (pos.x >= width_in_tiles - 1) {

@@ -8,16 +8,22 @@ all: examples
 
 examples: bin/font_rendering \
 		bin/animation \
-		bin/character_control
+		bin/character_control \
+		bin/sprites
 
-bin/font_rendering: examples/font_rendering.c obj/timespec obj/sx obj/tile obj/vec
-	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel
+objs: obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
 
-bin/animation: examples/animation.c obj/timespec obj/sx obj/tile obj/vec
-	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel
+bin/font_rendering: examples/font_rendering.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/character_control: examples/character_control.c obj/timespec obj/sx obj/tile obj/vec
-	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel
+bin/animation: examples/animation.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
+
+bin/character_control: examples/character_control.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
+
+bin/sprites: examples/sprites.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
 obj/timespec: src/timespec.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
@@ -30,6 +36,12 @@ obj/tile: src/tile.c
 
 obj/vec: src/vec.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
+
+obj/color: src/color.c
+	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
+
+obj/png_handler: src/png_handler.c
+	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude -lpng
 
 clean:
 	rm -f bin/* obj/*

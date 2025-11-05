@@ -85,73 +85,83 @@ int main(int argc, char* argv[]) {
 
     return 0;
 
-    Renderer r = sx_init(width, height, render_scale);
+    /*     Renderer r = sx_init(width, height, render_scale); */
 
-    // Red rectangle to move around, this will just be 1 tile big
-    // Coordinates are in "tile space"
-    // Velocity is initialized to (1,1), meaning it will move down and to the
-    // right
-    Vec2 red_box =
-        VEC2((double)width_in_tiles / 2, (double)height_in_tiles / 2);
-    Vec2 red_box_velocity = VEC2_SPLAT(1);
+    /*     // Red rectangle to move around, this will just be 1 tile big */
+    /*     // Coordinates are in "tile space" */
+    /*     // Velocity is initialized to (1,1), meaning it will move down and to
+     * the */
+    /*     // right */
+    /*     Vec2 red_box = */
+    /*         VEC2((double)width_in_tiles / 2, (double)height_in_tiles / 2); */
+    /*     Vec2 red_box_velocity = VEC2_SPLAT(1); */
 
-    // 15FPS
-    struct timespec frame_time = timespec_from_double(1 / (double)15);
+    /*     // 15FPS */
+    /*     struct timespec frame_time = timespec_from_double(1 / (double)15); */
 
-    struct timespec frame_prev = {0};
-    if (clock_gettime(CLOCK_REALTIME, &frame_prev) == -1) {
-        perror("clock_gettime");
-        exit(1);
-    }
+    /*     struct timespec frame_prev = {0}; */
+    /*     if (clock_gettime(CLOCK_REALTIME, &frame_prev) == -1) { */
+    /*         perror("clock_gettime"); */
+    /*         exit(1); */
+    /*     } */
 
-    while (true) {
-        struct timespec frame_start = {0};
-        if (clock_gettime(CLOCK_REALTIME, &frame_start) == -1) {
-            perror("clock_gettime");
-            exit(1);
-        }
-        struct timespec next_frame = timespec_add(frame_start, frame_time);
+    /*     while (true) { */
+    /*         struct timespec frame_start = {0}; */
+    /*         if (clock_gettime(CLOCK_REALTIME, &frame_start) == -1) { */
+    /*             perror("clock_gettime"); */
+    /*             exit(1); */
+    /*         } */
+    /*         struct timespec next_frame = timespec_add(frame_start,
+     * frame_time); */
 
-        printf("\033[H");
-        fflush(stdout);
-        // A simple white box to show the outline of our render
-        r.draw_rect(r.state, (Vec2){.x = 0, .y = 0},
-                    tile_coords(VEC2(width_in_tiles - 1, height_in_tiles - 1),
-                                tile_dim, SE),
-                    WHITE);
+    /*         printf("\033[H"); */
+    /*         fflush(stdout); */
+    /*         // A simple white box to show the outline of our render */
+    /*         r.draw_rect(r.state, (Vec2){.x = 0, .y = 0}, */
+    /*                     tile_coords(VEC2(width_in_tiles - 1, height_in_tiles
+     * - 1), */
+    /*                                 tile_dim, SE), */
+    /*                     WHITE); */
 
-        // Draw red rectangle, grap upper left (NW) and lower right (SE) coords
-        r.draw_rect_filled(r.state, tile_coords(red_box, tile_dim, NW),
-                           tile_coords(red_box, tile_dim, SE), RED, RED);
+    /*         // Draw red rectangle, grap upper left (NW) and lower right (SE)
+     * coords */
+    /*         r.draw_rect_filled(r.state, tile_coords(red_box, tile_dim, NW),
+     */
+    /*                            tile_coords(red_box, tile_dim, SE), RED, RED);
+     */
 
-        // Check if would collide, if so update velocity
-        Vec2 new_pos = vec2_add(red_box, red_box_velocity);
-        bool horizontal_collision =
-            new_pos.x < 0 || new_pos.x >= width_in_tiles;
-        bool vertical_collision = new_pos.y < 0 || new_pos.y >= height_in_tiles;
-        red_box_velocity =
-            vec2_mul(red_box_velocity, VEC2(horizontal_collision ? -1 : 1,
-                                            vertical_collision ? -1 : 1));
-        // Update position
-        red_box = vec2_add(red_box, red_box_velocity);
+    /*         // Check if would collide, if so update velocity */
+    /*         Vec2 new_pos = vec2_add(red_box, red_box_velocity); */
+    /*         bool horizontal_collision = */
+    /*             new_pos.x < 0 || new_pos.x >= width_in_tiles; */
+    /*         bool vertical_collision = new_pos.y < 0 || new_pos.y >=
+     * height_in_tiles; */
+    /*         red_box_velocity = */
+    /*             vec2_mul(red_box_velocity, VEC2(horizontal_collision ? -1 :
+     * 1, */
+    /*                                             vertical_collision ? -1 :
+     * 1)); */
+    /*         // Update position */
+    /*         red_box = vec2_add(red_box, red_box_velocity); */
 
-        // Currently render clears the pixel buffer
-        r.render(r.state);
+    /*         // Currently render clears the pixel buffer */
+    /*         r.render(r.state); */
 
-    SLEEP:;
-        struct timespec frame_end = {0};
-        if (clock_gettime(CLOCK_REALTIME, &frame_end) == -1) {
-            perror("clock_gettime");
-            exit(1);
-        }
+    /*     SLEEP:; */
+    /*         struct timespec frame_end = {0}; */
+    /*         if (clock_gettime(CLOCK_REALTIME, &frame_end) == -1) { */
+    /*             perror("clock_gettime"); */
+    /*             exit(1); */
+    /*         } */
 
-        frame_prev = frame_start;
+    /*         frame_prev = frame_start; */
 
-        struct timespec sleep_length = timespec_sub(next_frame, frame_end);
-        nanosleep(&sleep_length, NULL);
-    }
+    /*         struct timespec sleep_length = timespec_sub(next_frame,
+     * frame_end); */
+    /*         nanosleep(&sleep_length, NULL); */
+    /*     } */
 
-cleanup:
-    r.cleanup(r.state);
+    /* cleanup: */
+    /*     r.cleanup(r.state); */
     printf("\n");
 }

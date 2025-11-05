@@ -65,11 +65,12 @@ int main(int argc, char* argv[]) {
         r.draw_rect(r.state, (Vec2){.x = 0, .y = 0},
                     tile_coords(VEC2(width_in_tiles - 1, height_in_tiles - 1),
                                 tile_dim, SE),
-                    WHITE);
+                    RGBA(WHITE));
 
         // Draw red rectangle, grap upper left (NW) and lower right (SE) coords
         r.draw_rect_filled(r.state, tile_coords(red_box, tile_dim, NW),
-                           tile_coords(red_box, tile_dim, SE), RED, RED);
+                           tile_coords(red_box, tile_dim, SE), RGBA(RED),
+                           RGBA(RED));
 
         // Check if would collide, if so update velocity
         Vec2 new_pos = vec2_add(red_box, red_box_velocity);

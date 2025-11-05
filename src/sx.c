@@ -1,6 +1,7 @@
 #include "sx.h"
 #include "font.h"
 #include "renderer.h"
+#include "tile.h"
 #include "vec.h"
 #include <assert.h>
 #include <math.h>
@@ -35,14 +36,15 @@ static void set_pixel(SixelState* s, size_t x, size_t y) {
     s->pixels[(y * s->width) + x] = WHITE;
 }
 
-static void set_pixel_color(SixelState* s, size_t x, size_t y, RGB color) {
+static void set_pixel_color(SixelState* s, size_t x, size_t y, RGBA color) {
     if (x >= s->width || y >= s->height) {
         return;
     }
-    s->pixels[(y * s->width) + x] = color;
+    s->pixels[(y * s->width) + x] =
+        color_blend(s->pixels[(y * s->width) + x], color);
 }
 
-static void fill_region(SixelState* s, Vec2 p1, Vec2 p2, RGB color) {
+static void fill_region(SixelState* s, Vec2 p1, Vec2 p2, RGBA color) {
     size_t x1 = p1.x;
     size_t y1 = p1.y;
     size_t x2 = p2.x;
@@ -56,7 +58,7 @@ static void fill_region(SixelState* s, Vec2 p1, Vec2 p2, RGB color) {
 }
 
 // Draws from top left
-static void draw_char(SixelState* s, char c, size_t row, size_t col, RGB color,
+static void draw_char(SixelState* s, char c, size_t row, size_t col, RGBA color,
                       size_t scale) {
     size_t x = col;
     size_t y = row;
@@ -77,13 +79,34 @@ static void draw_char(SixelState* s, char c, size_t row, size_t col, RGB color,
     }
 }
 
-static void draw_string(void* state, char* str, Vec2 pos, RGB color,
+static void draw_string(void* state, char* str, Vec2 pos, RGBA color,
                         size_t scale) {
     SixelState* s = (SixelState*)state;
 
     for (size_t i = 0; i < strlen(str); i++) {
         draw_char(s, str[i], pos.y, pos.x + (i * FONT_DIM * scale), color,
                   scale);
+    }
+}
+
+void draw_tile(void* state, Vec2 dest_tile, Vec2 tile_shift, Tilemap t,
+               Vec2 source_tile, TileRotation rot, int flip) {
+    SixelState* s = (SixelState*)state;
+
+    // TODO For now just draw the tile in the correct spot with no rotation or
+    // flip
+
+    Vec2 canvas_nw = tile_coords(dest_tile, t.tile_dimensions.x, NW);
+    Vec2 tilemap_nw = tile_coords(source_tile, t.tile_dimensions.x, NW);
+    for (size_t row = 0; row < t.tile_dimensions.x; row++) {
+        for (size_t col = 0; col < t.tile_dimensions.y; col++) {
+            size_t tilemap_index =
+                (((size_t)tilemap_nw.y + row) * (size_t)t.dimensions.x) +
+                (size_t)tilemap_nw.x + col;
+
+            set_pixel_color(s, canvas_nw.x + col, canvas_nw.y + row,
+                            t.pixels[tilemap_index]);
+        }
     }
 }
 
@@ -101,20 +124,20 @@ static double slope(double x1, double y1, double x2, double y2) {
     return (y2 - y1) / (x2 - x1);
 }
 
-void draw_hline(void* state, size_t x1, size_t y1, size_t x2, RGB color) {
+void draw_hline(void* state, size_t x1, size_t y1, size_t x2, RGBA color) {
     SixelState* s = (SixelState*)state;
     for (size_t col = min(x1, x2); col <= max(x1, x2); col++) {
         set_pixel_color(s, col, y1, color);
     }
 }
-void draw_vline(void* state, size_t x1, size_t y1, size_t y2, RGB color) {
+void draw_vline(void* state, size_t x1, size_t y1, size_t y2, RGBA color) {
     SixelState* s = (SixelState*)state;
     for (size_t row = min(y1, y2); row < max(y1, y2); row++) {
         set_pixel_color(s, x1, row, color);
     }
 }
 
-void draw_line(void* state, Vec2 p1, Vec2 p2, RGB color) {
+void draw_line(void* state, Vec2 p1, Vec2 p2, RGBA color) {
     SixelState* s = (SixelState*)state;
 
     size_t x1 = p1.x;
@@ -234,7 +257,7 @@ void draw_line(void* state, Vec2 p1, Vec2 p2, RGB color) {
     }
 }
 
-void draw_rect(void* state, Vec2 p1, Vec2 p2, RGB color) {
+void draw_rect(void* state, Vec2 p1, Vec2 p2, RGBA color) {
     size_t x1 = p1.x;
     size_t y1 = p1.y;
     size_t x2 = p2.x;
@@ -246,10 +269,16 @@ void draw_rect(void* state, Vec2 p1, Vec2 p2, RGB color) {
     draw_hline(state, x1, y2, x2, color);
 }
 
-void draw_rect_filled(void* state, Vec2 p1, Vec2 p2, RGB border_color,
-                      RGB fill_color) {
+void draw_rect_filled(void* state, Vec2 p1, Vec2 p2, RGBA border_color,
+                      RGBA fill_color) {
     fill_region((SixelState*)state, p1, p2, fill_color);
     draw_rect(state, p1, p2, border_color);
+}
+
+void draw_pixel(void* state, Vec2 p, RGBA color) {
+    SixelState* s = (SixelState*)state;
+
+    set_pixel_color(s, p.x, p.y, color);
 }
 
 void render(void* state) {
@@ -303,9 +332,9 @@ Renderer sx_init(size_t width, size_t height, size_t scale) {
 
     sixel_output_set_palette_type(s->context, PALETTETYPE_RGB);
 
-    s->dither = sixel_dither_get(SIXEL_BUILTIN_VT340_COLOR);
+    s->dither = sixel_dither_get(SIXEL_BUILTIN_XTERM256);
     sixel_dither_set_pixelformat(s->dither, SIXEL_PIXELFORMAT_RGB888);
-    sixel_dither_set_diffusion_type(s->dither, SIXEL_DIFFUSE_X_DITHER);
+    sixel_dither_set_diffusion_type(s->dither, SIXEL_DIFFUSE_NONE);
 
     status = sixel_encode((void*)s->pixels, s->width, s->height, 0, s->dither,
                           s->context);
@@ -327,7 +356,9 @@ Renderer sx_init(size_t width, size_t height, size_t scale) {
         .draw_line = draw_line,
         .draw_rect = draw_rect,
         .draw_rect_filled = draw_rect_filled,
+        .draw_pixel = draw_pixel,
         .draw_text = draw_string,
+        .draw_tile = draw_tile,
         .render = render,
         .cleanup = cleanup,
     };

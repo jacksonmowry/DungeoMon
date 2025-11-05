@@ -1,7 +1,9 @@
 #pragma once
 
+#include "color.h"
 #include "vec.h"
 #include <stddef.h>
+#include <stdint.h>
 
 typedef enum TileCorner {
     NORTH_WEST = 0,
@@ -14,7 +16,28 @@ typedef enum TileCorner {
     SE = 3
 } TileCorner;
 
+typedef enum TileRotation {
+    _0,
+    _90,
+    _180,
+    _270,
+} TileRotation;
+
+#define TILE_HORIZONTAL_FLIP = 1
+#define TILE_VERTICAL_FLIP = 2
+
 // 0,0 is the top left of the screen
 // w-1,h-1 is the bottom right
 // Give the upper left coordinate of the provided tile
 Vec2 tile_coords(Vec2 point, size_t tile_size, TileCorner corner);
+
+typedef struct Tilemap {
+    RGBA* pixels;
+    Vec2 dimensions;
+
+    Vec2 tile_dimensions;
+    Vec2 tile_gaps;
+} Tilemap;
+
+void tilemap_deinit(Tilemap t);
+Tilemap tilemap_load_png(const char* png_path, Vec2 tile_dims, Vec2 tile_gaps);
