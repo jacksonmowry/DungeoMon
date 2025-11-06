@@ -2,6 +2,10 @@
 
 RGB color_blend(RGB base_color, RGBA new_color) {
     double alpha = (double)new_color.a / 255;
+    if (alpha == 0) {
+        return base_color;
+    }
+
     return (RGB){
         .r = ((double)base_color.r * (1 - alpha)) +
              ((double)new_color.r * alpha),

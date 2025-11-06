@@ -22,10 +22,10 @@ typedef struct RGBA {
     ((RGBA){                                                                   \
         .r = (c.r * (br)), .g = (c.g * (br)), .b = (c.b * (br)), .a = (c.a)})
 
-#define WHITE ((RGB){.r = 0xFF, .g = 0xFF, .b = 0xFF})
-#define BLACK ((RGB){.r = 0x00, .g = 0x00, .b = 0x00})
-#define RED ((RGB){.r = 0xFF, .g = 0x00, .b = 0x00})
-#define BLUE ((RGB){.r = 0x00, .g = 0x00, .b = 0xFF})
-#define GREEN ((RGB){.r = 0x00, .g = 0xFF, .b = 0x00})
+#define WHITE ((RGBA){.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF})
+#define BLACK ((RGBA){.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF})
+#define RED ((RGBA){.r = 0xFF, .g = 0x00, .b = 0x00, .a = 0xFF})
+#define BLUE ((RGBA){.r = 0x00, .g = 0x00, .b = 0xFF, .a = 0xFF})
+#define GREEN ((RGBA){.r = 0x00, .g = 0xFF, .b = 0x00, .a = 0xFF})
 
 RGB color_blend(RGB base_color, RGBA new_color);

@@ -33,7 +33,7 @@ static void set_pixel(SixelState* s, size_t x, size_t y) {
     if (x >= s->width || y >= s->height) {
         return;
     }
-    s->pixels[(y * s->width) + x] = WHITE;
+    s->pixels[(y * s->width) + x] = (RGB){.r = 0xFF, .g = 0xFF, .b = 0xFF};
 }
 
 static void set_pixel_color(SixelState* s, size_t x, size_t y, RGBA color) {
@@ -104,8 +104,22 @@ void draw_tile(void* state, Vec2 dest_tile, Vec2 tile_shift, Tilemap t,
                 (((size_t)tilemap_nw.y + row) * (size_t)t.dimensions.x) +
                 (size_t)tilemap_nw.x + col;
 
-            set_pixel_color(s, canvas_nw.x + col, canvas_nw.y + row,
+            set_pixel_color(s, canvas_nw.x + col + tile_shift.x,
+                            canvas_nw.y + row + tile_shift.y,
                             t.pixels[tilemap_index]);
+        }
+    }
+}
+
+void draw_map(void* state, Map m) {
+    SixelState* s = (SixelState*)state;
+
+    for (size_t row = 0; row < m.dimensions.y; row++) {
+        for (size_t col = 0; col < m.dimensions.x; col++) {
+            Vec2 pos = tile_coords(VEC2(col, row), m.t.tile_dimensions.x, NW);
+            draw_tile(state, VEC2(col, row), VEC2(0, 0), m.t,
+                      m.tiles[(row * (size_t)m.dimensions.x) + col], 0, 0);
+            Vec2 v = m.tiles[(row * (size_t)m.dimensions.x) + col];
         }
     }
 }
@@ -258,15 +272,21 @@ void draw_line(void* state, Vec2 p1, Vec2 p2, RGBA color) {
 }
 
 void draw_rect(void* state, Vec2 p1, Vec2 p2, RGBA color) {
-    size_t x1 = p1.x;
-    size_t y1 = p1.y;
-    size_t x2 = p2.x;
-    size_t y2 = p2.y;
+    size_t x1 = min(p1.x, p2.x);
+    size_t y1 = min(p1.y, p2.y);
+    size_t x2 = max(p1.x, p2.x);
+    size_t y2 = max(p1.y, p2.y);
 
     draw_vline(state, x1, y1, y2, color);
     draw_vline(state, x2, y1, y2, color);
-    draw_hline(state, x1, y1, x2, color);
-    draw_hline(state, x1, y2, x2, color);
+
+    if (x1 != x2) {
+        draw_hline(state, x1 + 1, y1, x2 - 1, color);
+        draw_hline(state, x1, y2, x2, color);
+    } else {
+        draw_hline(state, x1, y1, x2, color);
+        draw_hline(state, x1, y2, x2, color);
+    }
 }
 
 void draw_rect_filled(void* state, Vec2 p1, Vec2 p2, RGBA border_color,
@@ -359,6 +379,7 @@ Renderer sx_init(size_t width, size_t height, size_t scale) {
         .draw_pixel = draw_pixel,
         .draw_text = draw_string,
         .draw_tile = draw_tile,
+        .draw_map = draw_map,
         .render = render,
         .cleanup = cleanup,
     };

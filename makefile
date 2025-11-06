@@ -9,7 +9,9 @@ all: examples
 examples: bin/font_rendering \
 		bin/animation \
 		bin/character_control \
-		bin/sprites
+		bin/sprites \
+		bin/map \
+		bin/map_editor
 
 objs: obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
 
@@ -23,6 +25,12 @@ bin/character_control: examples/character_control.c obj/timespec obj/sx obj/tile
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
 bin/sprites: examples/sprites.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
+
+bin/map: examples/map.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
+
+bin/map_editor: examples/map_editor.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
 obj/timespec: src/timespec.c

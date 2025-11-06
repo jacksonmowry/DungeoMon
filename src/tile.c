@@ -3,7 +3,7 @@
 #include "vec.h"
 #include <stdlib.h>
 
-Vec2 tile_coords(Vec2 point, size_t tile_size, TileCorner corner) {
+Vec2 tile_coords(Vec2 point, ssize_t tile_size, TileCorner corner) {
     switch (corner) {
     case NORTH_WEST:
         return vec2_mul(point, tile_size);

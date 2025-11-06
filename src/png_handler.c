@@ -23,27 +23,8 @@
 #include <png.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
-RGBA* read_pam_file(const char* filename, Vec2* dimensions) {
-    int fd = open(filename, O_RDONLY);
-    int len = lseek(fd, 0, SEEK_END);
-    char* data = mmap(0, len, PROT_READ, MAP_PRIVATE, fd, 0);
-
-    char* start = strstr(data, "ENDHDR");
-
-    RGBA* pixels = malloc(128 * 80 * 4);
-    memcpy(pixels, start, 128 * 80 * 4);
-
-    munmap(data, len);
-    close(fd);
-
-    dimensions->x = 128;
-    dimensions->y = 80;
-    return pixels;
-}
 
 RGBA* read_png_file(const char* filename, Vec2* dimensions) {
     int width, height;

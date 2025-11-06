@@ -1,6 +1,7 @@
 #pragma once
 
 #include "color.h"
+#include "map.h"
 #include "tile.h"
 #include "vec.h"
 #include <stddef.h>
@@ -23,6 +24,7 @@ typedef struct Renderer {
                       size_t scale);
     void (*draw_tile)(void* state, Vec2 dest_tile, Vec2 tile_shift, Tilemap t,
                       Vec2 source_tile, TileRotation rot, int flip);
+    void (*draw_map)(void* state, Map m);
     void (*render)(void* state);
     void (*cleanup)(void* state);
 } Renderer;

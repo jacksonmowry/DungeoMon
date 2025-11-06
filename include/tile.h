@@ -4,6 +4,7 @@
 #include "vec.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 typedef enum TileCorner {
     NORTH_WEST = 0,
@@ -29,7 +30,7 @@ typedef enum TileRotation {
 // 0,0 is the top left of the screen
 // w-1,h-1 is the bottom right
 // Give the upper left coordinate of the provided tile
-Vec2 tile_coords(Vec2 point, size_t tile_size, TileCorner corner);
+Vec2 tile_coords(Vec2 point, ssize_t tile_size, TileCorner corner);
 
 typedef struct Tilemap {
     RGBA* pixels;
