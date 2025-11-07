@@ -163,7 +163,7 @@ int main(int argc, char* argv[]) {
         {WALL_BOTTOM_LEFT, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_RIGHT}
     };
     // clang-format on
-    Renderer r = sx_init(240, 160, 6);
+    Renderer r = sx_init(240, 160, 2);
 
     RenderArgs ra = {
         .r = r,
@@ -210,6 +210,8 @@ int main(int argc, char* argv[]) {
                 ra.pos.x = ra.pos.x != 29 ? ra.pos.x + 1 : ra.pos.x;
                 ra.selected = false;
                 break;
+            case 'q':
+                goto CLEANUP;
             default:
                 break;
             }
