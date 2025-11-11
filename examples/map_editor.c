@@ -192,7 +192,8 @@ void* render_thread(void* arg) {
     return NULL;
 }
 
-LockableQueueType(char);
+LockableQueuePrototypes(char);
+LockableQueueImpl(char);
 
 int main(int argc, char* argv[]) {
     if (argc != 6) {
@@ -202,6 +203,9 @@ int main(int argc, char* argv[]) {
                 argv[0]);
         return 1;
     }
+
+    LockableQueue_char q = lockable_queue_char_init(1);
+    lockable_queue_char_add(&q, 'a');
 
     srand(time(NULL));
 
