@@ -25,11 +25,15 @@ void tilemap_deinit(Tilemap t) {
 
 Tilemap tilemap_load_png(const char* png_path, Vec2 tile_dims, Vec2 tile_gaps) {
     Vec2 dimensions;
-    /* RGBA* pixels = read_pam_file(png_path, &dimensions); */
     RGBA* pixels = read_png_file(png_path, &dimensions);
     return (Tilemap){
         .pixels = pixels,
         .dimensions = dimensions,
+        .dimensions_in_tiles =
+            VEC2((size_t)((size_t)dimensions.x / (size_t)tile_dims.x),
+                 (size_t)((size_t)dimensions.y / (size_t)tile_dims.y)),
+        .num_tiles = (size_t)((size_t)dimensions.x / (size_t)tile_dims.x) *
+                     (size_t)((size_t)dimensions.y / (size_t)tile_dims.y),
 
         .tile_dimensions = tile_dims,
         .tile_gaps = tile_gaps,
