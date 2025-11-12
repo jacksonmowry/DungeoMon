@@ -12,6 +12,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
@@ -61,6 +62,9 @@ typedef struct RenderArgs {
 
     EventQueue events;
     bool done;
+
+    bool debug;
+    int attribute_overlay;
 } RenderArgs;
 
 int render_thread(void* arg) {
@@ -146,6 +150,43 @@ int render_thread(void* arg) {
                     ra->tile_pos.x != 29 ? ra->tile_pos.x + 1 : ra->tile_pos.x;
             }
             break;
+        case R:
+            if (!ra->selected) {
+                size_t index =
+                    (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
+                ra->m.tile_rotations[index] =
+                    (ra->m.tile_rotations[index] + 1) % 4;
+            }
+            break;
+        case V:
+            if (!ra->selected) {
+                size_t index =
+                    (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
+                ra->m.tile_attributes[index] ^= TILE_VERTICAL_FLIP;
+            }
+            break;
+        case B:
+            if (!ra->selected) {
+                size_t index =
+                    (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
+                ra->m.tile_attributes[index] ^= TILE_HORIZONTAL_FLIP;
+            }
+            break;
+        case D:
+            ra->debug = !ra->debug;
+            printf("\033[2J");
+            break;
+        case T:
+            if (ra->debug) {
+                ra->attribute_overlay =
+                    (ra->attribute_overlay + 1) % TILE_NUM_ATTRIBUTES;
+            }
+            break;
+        case W: {
+            size_t index =
+                (ra->tile_pos.y * (size_t)ra->m.dimensions.x) + ra->tile_pos.x;
+            ra->m.tile_attributes[index] ^= TILE_WALL;
+        } break;
         case ENTER:
             if (!ra->selected) {
                 ra->selected = true;
@@ -175,7 +216,6 @@ int render_thread(void* arg) {
                                           (size_t)ra->tile_pos.x];
 
                 ra->selected = false;
-                /* exit(1); */
             }
             break;
         case ESCAPE:
@@ -191,6 +231,26 @@ int render_thread(void* arg) {
         /* RENDERING */
         /*************/
         ra->r.draw_map(ra->r.state, ra->m);
+
+        if (ra->attribute_overlay != TILE_NORMAL && ra->debug) {
+            // Draw a blue tint over all tiles with the currently selected
+            // attribute
+            for (size_t row = 0; row < ra->m.dimensions.y; row++) {
+                for (size_t col = 0; col < ra->m.dimensions.x; col++) {
+                    size_t index = (row * (size_t)ra->m.dimensions.x) + col;
+                    if (ra->m.tile_attributes[index] &
+                        (1 << (ra->attribute_overlay - 1))) {
+                        Vec2 pos = VEC2(col, row);
+                        ra->r.draw_rect_filled(
+                            ra->r.state,
+                            tile_coords(pos, ra->t.tile_dimensions.x, NW),
+                            tile_coords(pos, ra->t.tile_dimensions.x, SE),
+                            (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a = 0x45},
+                            (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a = 0x45});
+                    }
+                }
+            }
+        }
 
         // Draw red outline
         ra->r.draw_rect(ra->r.state,
@@ -271,10 +331,49 @@ int render_thread(void* arg) {
         fflush(stdout);
         ra->r.render(ra->r.state);
         printf("\n");
-        printf("'q'       to quit\r\n");
-        printf("'hjkl'    to move left down up right\r\n");
-        printf("'Enter'   to change a tile\r\n");
-        printf("'Escape'  to unselect a tile\r\n");
+        printf("+---------------------------------------+\r\n");
+        printf("|'q'      | to quit                     |\r\n");
+        printf("|'hjkl'   | to move left down up right  |\r\n");
+        printf("|'r'      | to rotate tile clockwise    |\r\n");
+        printf("|'v'      | to flip tile vertically     |\r\n");
+        printf("|'r'      | to flip tile horizontally   |\r\n");
+        printf("|'Enter'  | to change a tile            |\r\n");
+        printf("|'Escape' | to unselect a tile          |\r\n");
+        printf("|'d'      | to enable debug view        |\r\n");
+        printf("+---------------------------------------+\r\n");
+        static char buf[4096];
+        if (ra->debug) {
+            printf("\033[0J");
+            printf("Overlay highlight: ");
+            switch (ra->attribute_overlay) {
+            case 1:
+                printf(TILE_HORIZONTAL_FLIP_STR);
+                break;
+            case 2:
+                printf(TILE_VERTICAL_FLIP_STR);
+                break;
+            case 3:
+                printf(TILE_WALL_STR);
+                break;
+            case 4:
+                printf(TILE_ENEMY_STR);
+                break;
+            case 5:
+                printf(TILE_DOOR_STR);
+                break;
+            case 6:
+                printf(TILE_STAIRS_STR);
+                break;
+            case 7:
+                printf(TILE_LOOT_STR);
+                break;
+            default:
+                printf("none");
+            }
+            printf("\r\n");
+            map_tile_attributes_debug(ra->m, ra->tile_pos, buf, 4096);
+            printf("%s\r\n", buf);
+        }
 
     SLEEP:;
         struct timespec frame_end = {0};
@@ -334,13 +433,51 @@ int main(int argc, char* argv[]) {
         {WALL_LEFT, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, WALL_RIGHT},
         {WALL_BOTTOM_LEFT, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_RIGHT}
     };
+    uint16_t map_attributes[20][30] = {
+    {TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILE_WALL},
+         {TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL, TILE_WALL}
+    };
     // clang-format on
-    Renderer r = sx_init(240, 160, 2);
+
+    const size_t width = 240;
+    const size_t height = 160;
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    // figure out how much we can upscale based on the terminal size
+    size_t horizontal_scale = w.ws_xpixel / width;
+    size_t vertical_scale = w.ws_ypixel / height;
+    size_t scale =
+        horizontal_scale < vertical_scale ? horizontal_scale : vertical_scale;
+
+    Renderer r = sx_init(width, height, scale);
 
     RenderArgs ra = {
         .r = r,
         .t = t,
-        .m = (Map){.tiles = (Vec2*)map, .t = t, .dimensions = VEC2(30, 20)},
+        .m = (Map){.t = t,
+                   .tiles = (Vec2*)map,
+                   .tile_rotations =
+                       calloc(20 * 30, sizeof(*ra.m.tile_rotations)),
+                   .tile_attributes = (uint16_t*)map_attributes,
+                   .dimensions = VEC2(30, 20)},
 
         .tile_pos = {0},
         .picker_pos = {0},
@@ -371,6 +508,19 @@ int main(int argc, char* argv[]) {
         }
         struct timespec next_frame = timespec_add(frame_start, frame_time);
 
+        // Window resizing
+        struct winsize w;
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+        // figure out how much we can upscale based on the terminal size
+        size_t horizontal_scale = w.ws_xpixel / width;
+        size_t vertical_scale = w.ws_ypixel / height;
+        size_t scale = horizontal_scale < vertical_scale ? horizontal_scale
+                                                         : vertical_scale;
+        if (scale != ra.r.scale) {
+            ra.r.update_scale(ra.r.state, scale);
+        }
+
+        // User keypresses
         EventQueueResult result;
         char c = '\0';
         if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) {
@@ -396,6 +546,24 @@ int main(int argc, char* argv[]) {
             break;
         case 'l':
             e.event_type = RIGHT;
+            break;
+        case 'r':
+            e.event_type = R;
+            break;
+        case 'v':
+            e.event_type = V;
+            break;
+        case 'b':
+            e.event_type = B;
+            break;
+        case 'd':
+            e.event_type = D;
+            break;
+        case 't':
+            e.event_type = T;
+            break;
+        case 'w':
+            e.event_type = W;
             break;
         case 'q':
             e.event_type = QUIT;
@@ -426,4 +594,5 @@ CLEANUP:
     r.cleanup(r.state);
     tilemap_deinit(t);
     lockable_queue_Event_deinit(ra.events);
+    free(ra.m.tile_rotations);
 }

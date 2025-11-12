@@ -3,7 +3,22 @@
 #include "queue.h"
 
 typedef struct Event {
-    enum { NOP, UP, DOWN, LEFT, RIGHT, ENTER, ESCAPE, QUIT } event_type;
+    enum {
+        NOP,
+        UP,
+        DOWN,
+        LEFT,
+        RIGHT,
+        R,
+        V,
+        B,
+        D,
+        T,
+        W,
+        ENTER,
+        ESCAPE,
+        QUIT
+    } event_type;
 } Event;
 
 LockableQueuePrototypes(Event);

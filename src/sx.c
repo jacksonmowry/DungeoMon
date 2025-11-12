@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <threads.h>
 #include <unistd.h>
 
 #define max(x, y) (x > y ? x : y)
@@ -27,6 +28,8 @@ typedef struct SixelState {
     size_t height;
     size_t width;
     size_t scale;
+
+    mtx_t upscale_lock;
 } SixelState;
 
 static void set_pixel(SixelState* s, size_t x, size_t y) {
@@ -44,14 +47,15 @@ static void set_pixel_color(SixelState* s, size_t x, size_t y, RGBA color) {
         color_blend(s->pixels[(y * s->width) + x], color);
 }
 
+// Inclusive on both upper and lower bounds
 static void fill_region(SixelState* s, Vec2 p1, Vec2 p2, RGBA color) {
     size_t x1 = p1.x;
     size_t y1 = p1.y;
     size_t x2 = p2.x;
     size_t y2 = p2.y;
 
-    for (size_t row = min(y1, y2); row < max(y1, y2); row++) {
-        for (size_t col = min(x1, x2); col < max(x1, x2); col++) {
+    for (size_t row = min(y1, y2); row <= max(y1, y2); row++) {
+        for (size_t col = min(x1, x2); col <= max(x1, x2); col++) {
             set_pixel_color(s, col, row, color);
         }
     }
@@ -93,9 +97,6 @@ void draw_tile(void* state, Vec2 dest_tile, Vec2 tile_shift, Tilemap t,
                Vec2 source_tile, TileRotation rot, int flip) {
     SixelState* s = (SixelState*)state;
 
-    // TODO For now just draw the tile in the correct spot with no rotation or
-    // flip
-
     Vec2 canvas_nw = tile_coords(dest_tile, t.tile_dimensions.x, NW);
     Vec2 tilemap_nw = tile_coords(source_tile, t.tile_dimensions.x, NW);
     for (size_t row = 0; row < t.tile_dimensions.x; row++) {
@@ -104,8 +105,32 @@ void draw_tile(void* state, Vec2 dest_tile, Vec2 tile_shift, Tilemap t,
                 (((size_t)tilemap_nw.y + row) * (size_t)t.dimensions.x) +
                 (size_t)tilemap_nw.x + col;
 
-            set_pixel_color(s, canvas_nw.x + col + tile_shift.x,
-                            canvas_nw.y + row + tile_shift.y,
+            Vec2 draw_location;
+            switch (rot) {
+            case _0:
+                draw_location = VEC2(col, row);
+                break;
+            case _90:
+                draw_location = VEC2(t.tile_dimensions.y - 1 - row, col);
+                break;
+            case _180:
+                draw_location = VEC2(t.tile_dimensions.x - 1 - col,
+                                     t.tile_dimensions.y - 1 - row);
+                break;
+            case _270:
+                draw_location = VEC2(row, t.tile_dimensions.x - 1 - col);
+                break;
+            }
+
+            if (flip & TILE_HORIZONTAL_FLIP) {
+                draw_location.x = t.tile_dimensions.x - 1 - draw_location.x;
+            }
+            if (flip & TILE_VERTICAL_FLIP) {
+                draw_location.y = t.tile_dimensions.y - 1 - draw_location.y;
+            }
+
+            set_pixel_color(s, canvas_nw.x + draw_location.x + tile_shift.x,
+                            canvas_nw.y + draw_location.y + tile_shift.y,
                             t.pixels[tilemap_index]);
         }
     }
@@ -117,9 +142,9 @@ void draw_map(void* state, Map m) {
     for (size_t row = 0; row < m.dimensions.y; row++) {
         for (size_t col = 0; col < m.dimensions.x; col++) {
             Vec2 pos = tile_coords(VEC2(col, row), m.t.tile_dimensions.x, NW);
-            draw_tile(state, VEC2(col, row), VEC2(0, 0), m.t,
-                      m.tiles[(row * (size_t)m.dimensions.x) + col], 0, 0);
-            Vec2 v = m.tiles[(row * (size_t)m.dimensions.x) + col];
+            size_t index = (row * (size_t)m.dimensions.x) + col;
+            draw_tile(state, VEC2(col, row), VEC2(0, 0), m.t, m.tiles[index],
+                      m.tile_rotations[index], m.tile_attributes[index]);
         }
     }
 }
@@ -291,8 +316,18 @@ void draw_rect(void* state, Vec2 p1, Vec2 p2, RGBA color) {
 
 void draw_rect_filled(void* state, Vec2 p1, Vec2 p2, RGBA border_color,
                       RGBA fill_color) {
-    fill_region((SixelState*)state, p1, p2, fill_color);
-    draw_rect(state, p1, p2, border_color);
+    Vec2 upper_left = VEC2(min(p1.x, p2.x), min(p1.y, p2.y));
+    Vec2 lower_right = VEC2(max(p1.x, p2.x), max(p1.y, p2.y));
+
+    if ((upper_left.x - lower_right.x != 0) &&
+        (upper_left.y - lower_right.y != 0)) {
+        upper_left = vec2_add(upper_left, 1);
+        lower_right = vec2_add(lower_right, -1);
+        fill_region((SixelState*)state, upper_left, lower_right, fill_color);
+        draw_rect(state, p1, p2, border_color);
+    } else {
+        draw_rect(state, upper_left, lower_right, border_color);
+    }
 }
 
 void draw_pixel(void* state, Vec2 p, RGBA color) {
@@ -304,6 +339,7 @@ void draw_pixel(void* state, Vec2 p, RGBA color) {
 void render(void* state) {
     SixelState* s = (SixelState*)state;
 
+    mtx_lock(&s->upscale_lock);
     for (size_t row = 0; row < s->height * s->scale; row++) {
         for (size_t col = 0; col < s->width * s->scale; col++) {
             s->upscale[(row * s->width * s->scale) + col] =
@@ -319,10 +355,32 @@ void render(void* state) {
     }
 
     memset(s->pixels, 0, s->width * s->height * sizeof(*s->pixels));
+    mtx_unlock(&s->upscale_lock);
+}
+
+void update_scale(void* state, size_t scale) {
+    SixelState* s = (SixelState*)state;
+
+    if (scale == s->scale) {
+        return;
+    }
+
+    mtx_lock(&s->upscale_lock);
+    s->upscale = realloc(s->upscale, s->width * s->height * sizeof(*s->pixels) *
+                                         scale * scale);
+    if (!s->upscale) {
+        perror("realloc");
+        exit(1);
+    }
+    s->scale = scale;
+    printf("\033[H\033[0J");
+    mtx_unlock(&s->upscale_lock);
 }
 
 void cleanup(void* state) {
     SixelState* s = (SixelState*)state;
+
+    mtx_destroy(&s->upscale_lock);
 
     sixel_output_destroy(s->context);
     sixel_dither_unref(s->dither);
@@ -343,6 +401,7 @@ Renderer sx_init(size_t width, size_t height, size_t scale) {
     s->pixels = (RGB*)calloc(1, width * height * sizeof(*s->pixels));
     s->upscale =
         (RGB*)calloc(1, width * height * sizeof(*s->pixels) * scale * scale);
+    mtx_init(&s->upscale_lock, mtx_plain);
 
     int status = sixel_output_new(&s->context, sixel_write, stdout, NULL);
     if (SIXEL_FAILED(status)) {
@@ -370,6 +429,7 @@ Renderer sx_init(size_t width, size_t height, size_t scale) {
 
         .width = width,
         .height = height,
+        .scale = scale,
 
         .tile_size = FONT_DIM,
 
@@ -381,6 +441,7 @@ Renderer sx_init(size_t width, size_t height, size_t scale) {
         .draw_tile = draw_tile,
         .draw_map = draw_map,
         .render = render,
+        .update_scale = update_scale,
         .cleanup = cleanup,
     };
 }

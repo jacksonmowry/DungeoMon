@@ -12,6 +12,7 @@ typedef struct Renderer {
 
     size_t height;
     size_t width;
+    size_t scale;
 
     size_t tile_size;
 
@@ -26,5 +27,6 @@ typedef struct Renderer {
                       Vec2 source_tile, TileRotation rot, int flip);
     void (*draw_map)(void* state, Map m);
     void (*render)(void* state);
+    void (*update_scale)(void* state, size_t scale);
     void (*cleanup)(void* state);
 } Renderer;

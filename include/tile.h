@@ -18,15 +18,13 @@ typedef enum TileCorner {
     SE = 3
 } TileCorner;
 
+// clock wise
 typedef enum TileRotation {
     _0,
     _90,
     _180,
     _270,
 } TileRotation;
-
-#define TILE_HORIZONTAL_FLIP = 1
-#define TILE_VERTICAL_FLIP = 2
 
 // 0,0 is the top left of the screen
 // w-1,h-1 is the bottom right

@@ -3,17 +3,34 @@
 #include "tile.h"
 #include "vec.h"
 
-#define TILE_NORMAL 0 << 0
-#define TILE_WALL 1 << 0
-#define TILE_ENEMY 1 << 1
-#define TILE_DOOR 1 << 2
-#define TILE_STAIRS 1 << 3
-#define TILE_LOOT 1 << 4
+#define TILE_NORMAL (0 << 0)
+#define TILE_HORIZONTAL_FLIP (1 << 0)
+#define TILE_VERTICAL_FLIP (1 << 1)
+#define TILE_WALL (1 << 2)
+#define TILE_ENEMY (1 << 3)
+#define TILE_DOOR (1 << 4)
+#define TILE_STAIRS (1 << 5)
+#define TILE_LOOT (1 << 6)
+
+#define TILE_NUM_ATTRIBUTES 8
+
+#define TILE_NORMAL_STR "normal"
+#define TILE_HORIZONTAL_FLIP_STR "horizontal flip"
+#define TILE_VERTICAL_FLIP_STR "vertial flip"
+#define TILE_WALL_STR "wall"
+#define TILE_ENEMY_STR "enemy"
+#define TILE_DOOR_STR "door"
+#define TILE_STAIRS_STR "stairs"
+#define TILE_LOOT_STR "loot"
 
 typedef struct Map {
     Tilemap t;
     Vec2* tiles;
+    TileRotation* tile_rotations;
     uint16_t* tile_attributes;
 
     Vec2 dimensions;
 } Map;
+
+int map_tile_attributes_debug(const Map m, const Vec2 pos, char* buf,
+                              size_t buf_len);
