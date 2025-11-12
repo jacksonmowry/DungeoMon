@@ -7,6 +7,7 @@
 #include "sx.h"
 #include "tile.h"
 #include "timespec.h"
+#include "vec.h"
 #include <assert.h>
 #include <errno.h>
 #include <stddef.h>
@@ -55,8 +56,8 @@ typedef struct RenderArgs {
     Map m;
     Tilemap t;
 
-    Vec2 tile_pos;
-    Vec2 picker_pos;
+    Vec2I tile_pos;
+    Vec2I picker_pos;
     bool selected;
     int list_scroll_pos;
 
@@ -195,25 +196,21 @@ int render_thread(void* arg) {
                 // the map with the currently selected tile
                 const int starting_tile_index =
                     ra->list_scroll_pos * tiles_per_row;
-                Vec2 tile = VEC2(starting_tile_index %
-                                     (int)(ra->t.dimensions_in_tiles.x),
-                                 (int)(starting_tile_index /
-                                       (int)(ra->t.dimensions_in_tiles.x)));
+                Vec2I tile = VEC2I(
+                    starting_tile_index % (ra->t.dimensions_in_tiles.x),
+                    (starting_tile_index / (ra->t.dimensions_in_tiles.x)));
 
-                int tile_offset = ((int)ra->picker_pos.y * tiles_per_row) +
-                                  (int)ra->picker_pos.x;
-                tile = vec2_add(
-                    tile,
-                    VEC2((int)(tile_offset % (int)ra->t.dimensions_in_tiles.x),
-                         (int)((int)tile_offset /
-                               (int)ra->t.dimensions_in_tiles.x)));
+                int tile_offset =
+                    (ra->picker_pos.y * tiles_per_row) + ra->picker_pos.x;
+                tile = vec2i_add(
+                    tile, VEC2I((tile_offset % ra->t.dimensions_in_tiles.x),
+                                (tile_offset / ra->t.dimensions_in_tiles.x)));
 
-                ra->m.tiles[((size_t)ra->tile_pos.y *
-                             (size_t)ra->m.dimensions.x) +
-                            (size_t)ra->tile_pos.x] = tile;
-                Vec2 result = ra->m.tiles[((size_t)ra->tile_pos.y *
-                                           (size_t)ra->m.dimensions.x) +
-                                          (size_t)ra->tile_pos.x];
+                ra->m.tiles[(ra->tile_pos.y * ra->m.dimensions.x) +
+                            ra->tile_pos.x] = tile;
+                Vec2I result =
+                    ra->m.tiles[(ra->tile_pos.y * ra->m.dimensions.x) +
+                                ra->tile_pos.x];
 
                 ra->selected = false;
             }
@@ -240,7 +237,7 @@ int render_thread(void* arg) {
                     size_t index = (row * (size_t)ra->m.dimensions.x) + col;
                     if (ra->m.tile_attributes[index] &
                         (1 << (ra->attribute_overlay - 1))) {
-                        Vec2 pos = VEC2(col, row);
+                        Vec2I pos = VEC2I(col, row);
                         ra->r.draw_rect_filled(
                             ra->r.state,
                             tile_coords(pos, ra->t.tile_dimensions.x, NW),
@@ -262,8 +259,8 @@ int render_thread(void* arg) {
         if (ra->selected) {
             ra->r.draw_rect_filled(
                 ra->r.state,
-                tile_coords(VEC2(2, 2), ra->t.tile_dimensions.x, NW),
-                tile_coords(VEC2(27, 17), ra->t.tile_dimensions.x, SE), WHITE,
+                tile_coords(VEC2I(2, 2), ra->t.tile_dimensions.x, NW),
+                tile_coords(VEC2I(27, 17), ra->t.tile_dimensions.x, SE), WHITE,
                 (RGBA){.r = 0xAF, .g = 0xAF, .b = 0xAF, .a = 0xAF});
 
             // First check if they attempted to scroll past the end
@@ -287,10 +284,9 @@ int render_thread(void* arg) {
 
             // Now draw all of the tiles that will fit
             int starting_tile_index = ra->list_scroll_pos * tiles_per_row;
-            Vec2 tile =
-                VEC2(starting_tile_index % (int)(ra->t.dimensions_in_tiles.x),
-                     (int)(starting_tile_index /
-                           (int)(ra->t.dimensions_in_tiles.x)));
+            Vec2I tile =
+                VEC2I(starting_tile_index % (ra->t.dimensions_in_tiles.x),
+                      (starting_tile_index / (ra->t.dimensions_in_tiles.x)));
 
             for (size_t row = 3; row < 17; row += 2) {
                 for (size_t col = 3; col < 27; col += 2) {
@@ -302,7 +298,7 @@ int render_thread(void* arg) {
                         break;
                     }
 
-                    ra->r.draw_tile(ra->r.state, VEC2(col, row), VEC2(4, 4),
+                    ra->r.draw_tile(ra->r.state, VEC2I(col, row), VEC2I(4, 4),
                                     ra->t, tile, 0, 0);
 
                     tile.x++;
@@ -315,14 +311,16 @@ int render_thread(void* arg) {
             }
 
             // Draw tile picker
-            Vec2 picker_draw_nw = vec2_add(
-                tile_coords(vec2_add(vec2_mul(ra->picker_pos, 2), VEC2(3, 3)),
-                            ra->t.tile_dimensions.x, NW),
-                3);
-            Vec2 picker_draw_se = vec2_add(
-                tile_coords(vec2_add(vec2_mul(ra->picker_pos, 2), VEC2(3, 3)),
-                            ra->t.tile_dimensions.x, SE),
-                5);
+            Vec2I picker_draw_nw =
+                vec2i_add(tile_coords(vec2i_add(vec2i_mul(ra->picker_pos, 2),
+                                                VEC2I(3, 3)),
+                                      ra->t.tile_dimensions.x, NW),
+                          3);
+            Vec2I picker_draw_se =
+                vec2i_add(tile_coords(vec2i_add(vec2i_mul(ra->picker_pos, 2),
+                                                VEC2I(3, 3)),
+                                      ra->t.tile_dimensions.x, SE),
+                          5);
             ra->r.draw_rect(ra->r.state, picker_draw_nw, picker_draw_se,
                             (RGBA){.r = 0xFF, .g = 0xFF, .b = 0x00, .a = 0x95});
         }
@@ -407,8 +405,8 @@ int main(int argc, char* argv[]) {
 
     srand(time(NULL));
 
-    Vec2 tile_dims = VEC2(atoi(argv[3]), atoi(argv[4]));
-    Vec2 tile_gaps = VEC2(atoi(argv[5]), atoi(argv[6]));
+    Vec2I tile_dims = VEC2I(atoi(argv[3]), atoi(argv[4]));
+    Vec2I tile_gaps = VEC2I(atoi(argv[5]), atoi(argv[6]));
     Tilemap t = tilemap_load(argv[1], argv[2], tile_dims, tile_gaps);
 
     const size_t width = 240;

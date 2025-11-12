@@ -26,11 +26,11 @@
 
 typedef struct Map {
     Tilemap t;
-    Vec2* tiles;
+    Vec2I* tiles;
     TileRotation* tile_rotations;
     uint16_t* tile_attributes;
 
-    Vec2 dimensions;
+    Vec2I dimensions;
 } Map;
 
 typedef enum SaveMode {
@@ -48,5 +48,5 @@ bool map_save(const Map m, const char* filename, SaveMode mode);
 // allocated In the future we may way to just take this in by pointer
 Map map_load(const char* filename, Tilemap t);
 
-int map_tile_attributes_debug(const Map m, const Vec2 pos, char* buf,
+int map_tile_attributes_debug(const Map m, const Vec2I pos, char* buf,
                               size_t buf_len);

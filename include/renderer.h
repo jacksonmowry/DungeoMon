@@ -16,15 +16,15 @@ typedef struct Renderer {
 
     size_t tile_size;
 
-    void (*draw_line)(void* state, Vec2 p1, Vec2 p2, RGBA color);
-    void (*draw_rect)(void* state, Vec2 p1, Vec2 p2, RGBA color);
-    void (*draw_rect_filled)(void* state, Vec2 p1, Vec2 p2, RGBA border_color,
+    void (*draw_line)(void* state, Vec2I p1, Vec2I p2, RGBA color);
+    void (*draw_rect)(void* state, Vec2I p1, Vec2I p2, RGBA color);
+    void (*draw_rect_filled)(void* state, Vec2I p1, Vec2I p2, RGBA border_color,
                              RGBA fill_color);
-    void (*draw_pixel)(void* state, Vec2 p1, RGBA color);
-    void (*draw_text)(void* state, char* str, Vec2 pos, RGBA color,
+    void (*draw_pixel)(void* state, Vec2I p1, RGBA color);
+    void (*draw_text)(void* state, char* str, Vec2I pos, RGBA color,
                       size_t scale);
-    void (*draw_tile)(void* state, Vec2 dest_tile, Vec2 tile_shift, Tilemap t,
-                      Vec2 source_tile, TileRotation rot, int flip);
+    void (*draw_tile)(void* state, Vec2I dest_tile, Vec2I tile_shift, Tilemap t,
+                      Vec2I source_tile, TileRotation rot, int flip);
     void (*draw_map)(void* state, Map m);
     void (*render)(void* state);
     void (*update_scale)(void* state, size_t scale);

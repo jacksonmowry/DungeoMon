@@ -28,7 +28,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-RGBA* read_pam_file(const char* filename, Vec2* dimensions) {
+RGBA* read_pam_file(const char* filename, Vec2I* dimensions) {
     int width, height;
 
     FILE* fp = fopen(filename, "rb");
@@ -124,7 +124,7 @@ RGBA* read_pam_file(const char* filename, Vec2* dimensions) {
     return pixels;
 }
 
-RGBA* read_png_file(const char* filename, Vec2* dimensions) {
+RGBA* read_png_file(const char* filename, Vec2I* dimensions) {
     int width, height;
     png_byte color_type;
     png_byte bit_depth;

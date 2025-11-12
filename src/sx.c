@@ -48,7 +48,7 @@ static void set_pixel_color(SixelState* s, size_t x, size_t y, RGBA color) {
 }
 
 // Inclusive on both upper and lower bounds
-static void fill_region(SixelState* s, Vec2 p1, Vec2 p2, RGBA color) {
+static void fill_region(SixelState* s, Vec2I p1, Vec2I p2, RGBA color) {
     size_t x1 = p1.x;
     size_t y1 = p1.y;
     size_t x2 = p2.x;
@@ -83,7 +83,7 @@ static void draw_char(SixelState* s, char c, size_t row, size_t col, RGBA color,
     }
 }
 
-static void draw_string(void* state, char* str, Vec2 pos, RGBA color,
+static void draw_string(void* state, char* str, Vec2I pos, RGBA color,
                         size_t scale) {
     SixelState* s = (SixelState*)state;
 
@@ -93,32 +93,32 @@ static void draw_string(void* state, char* str, Vec2 pos, RGBA color,
     }
 }
 
-void draw_tile(void* state, Vec2 dest_tile, Vec2 tile_shift, Tilemap t,
-               Vec2 source_tile, TileRotation rot, int flip) {
+void draw_tile(void* state, Vec2I dest_tile, Vec2I tile_shift, Tilemap t,
+               Vec2I source_tile, TileRotation rot, int flip) {
     SixelState* s = (SixelState*)state;
 
-    Vec2 canvas_nw = tile_coords(dest_tile, t.tile_dimensions.x, NW);
-    Vec2 tilemap_nw = tile_coords(source_tile, t.tile_dimensions.x, NW);
+    Vec2I canvas_nw = tile_coords(dest_tile, t.tile_dimensions.x, NW);
+    Vec2I tilemap_nw = tile_coords(source_tile, t.tile_dimensions.x, NW);
     for (size_t row = 0; row < t.tile_dimensions.x; row++) {
         for (size_t col = 0; col < t.tile_dimensions.y; col++) {
             size_t tilemap_index =
                 (((size_t)tilemap_nw.y + row) * (size_t)t.dimensions.x) +
                 (size_t)tilemap_nw.x + col;
 
-            Vec2 draw_location;
+            Vec2I draw_location;
             switch (rot) {
             case _0:
-                draw_location = VEC2(col, row);
+                draw_location = VEC2I(col, row);
                 break;
             case _90:
-                draw_location = VEC2(t.tile_dimensions.y - 1 - row, col);
+                draw_location = VEC2I(t.tile_dimensions.y - 1 - row, col);
                 break;
             case _180:
-                draw_location = VEC2(t.tile_dimensions.x - 1 - col,
-                                     t.tile_dimensions.y - 1 - row);
+                draw_location = VEC2I(t.tile_dimensions.x - 1 - col,
+                                      t.tile_dimensions.y - 1 - row);
                 break;
             case _270:
-                draw_location = VEC2(row, t.tile_dimensions.x - 1 - col);
+                draw_location = VEC2I(row, t.tile_dimensions.x - 1 - col);
                 break;
             }
 
@@ -141,10 +141,11 @@ void draw_map(void* state, Map m) {
 
     for (size_t row = 0; row < m.dimensions.y; row++) {
         for (size_t col = 0; col < m.dimensions.x; col++) {
-            Vec2 pos = tile_coords(VEC2(col, row), m.t.tile_dimensions.x, NW);
+            Vec2I pos = tile_coords(VEC2I(col, row), m.t.tile_dimensions.x, NW);
             size_t index = (row * (size_t)m.dimensions.x) + col;
-            draw_tile(state, VEC2(col, row), VEC2(0, 0), m.t, m.tiles[index],
-                      m.tile_rotations[index], m.tile_attributes[index]);
+            draw_tile(state, VEC2I(col, row), VEC2I(0, 0), m.t, m.tiles[index],
+                      m.tile_rotations ? m.tile_rotations[index] : 0,
+                      m.tile_attributes ? m.tile_attributes[index] : 0);
         }
     }
 }
@@ -176,7 +177,7 @@ void draw_vline(void* state, size_t x1, size_t y1, size_t y2, RGBA color) {
     }
 }
 
-void draw_line(void* state, Vec2 p1, Vec2 p2, RGBA color) {
+void draw_line(void* state, Vec2I p1, Vec2I p2, RGBA color) {
     SixelState* s = (SixelState*)state;
 
     size_t x1 = p1.x;
@@ -296,7 +297,7 @@ void draw_line(void* state, Vec2 p1, Vec2 p2, RGBA color) {
     }
 }
 
-void draw_rect(void* state, Vec2 p1, Vec2 p2, RGBA color) {
+void draw_rect(void* state, Vec2I p1, Vec2I p2, RGBA color) {
     size_t x1 = min(p1.x, p2.x);
     size_t y1 = min(p1.y, p2.y);
     size_t x2 = max(p1.x, p2.x);
@@ -314,15 +315,15 @@ void draw_rect(void* state, Vec2 p1, Vec2 p2, RGBA color) {
     }
 }
 
-void draw_rect_filled(void* state, Vec2 p1, Vec2 p2, RGBA border_color,
+void draw_rect_filled(void* state, Vec2I p1, Vec2I p2, RGBA border_color,
                       RGBA fill_color) {
-    Vec2 upper_left = VEC2(min(p1.x, p2.x), min(p1.y, p2.y));
-    Vec2 lower_right = VEC2(max(p1.x, p2.x), max(p1.y, p2.y));
+    Vec2I upper_left = VEC2I(min(p1.x, p2.x), min(p1.y, p2.y));
+    Vec2I lower_right = VEC2I(max(p1.x, p2.x), max(p1.y, p2.y));
 
     if ((upper_left.x - lower_right.x != 0) &&
         (upper_left.y - lower_right.y != 0)) {
-        upper_left = vec2_add(upper_left, 1);
-        lower_right = vec2_add(lower_right, -1);
+        upper_left = vec2i_add(upper_left, 1);
+        lower_right = vec2i_add(lower_right, -1);
         fill_region((SixelState*)state, upper_left, lower_right, fill_color);
         draw_rect(state, p1, p2, border_color);
     } else {
@@ -330,7 +331,7 @@ void draw_rect_filled(void* state, Vec2 p1, Vec2 p2, RGBA border_color,
     }
 }
 
-void draw_pixel(void* state, Vec2 p, RGBA color) {
+void draw_pixel(void* state, Vec2I p, RGBA color) {
     SixelState* s = (SixelState*)state;
 
     set_pixel_color(s, p.x, p.y, color);

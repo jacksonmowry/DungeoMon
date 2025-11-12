@@ -32,16 +32,15 @@ int main(int argc, char* argv[]) {
     }
 
     Renderer r = sx_init(width, height, render_scale);
-
     // A simple white box to show the outline of our render
-    r.draw_rect(r.state, (Vec2){.x = 0, .y = 0},
-                tile_coords(VEC2(width_in_tiles - 1, height_in_tiles - 1),
+    r.draw_rect(r.state, (Vec2I){.x = 0, .y = 0},
+                tile_coords(VEC2I(width_in_tiles - 1, height_in_tiles - 1),
                             tile_dim, SE),
                 RGBA(WHITE));
 
     // We're starting both x&y at 1 to leave padding between the character
     // and the border
-    Vec2 pos = {.x = 1, .y = 1};
+    Vec2I pos = {.x = 1, .y = 1};
     for (char c = '!'; c <= '~'; c++) {
         char s[2] = {c, '\0'};
         r.draw_text(r.state, s, tile_coords(pos, tile_dim, NW), RGBA(WHITE), 1);

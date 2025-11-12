@@ -20,5 +20,5 @@
 #include "vec.h"
 #include <png.h>
 
-RGBA* read_pam_file(const char* filename, Vec2* dimensions);
-RGBA* read_png_file(const char* filename, Vec2* dimensions);
+RGBA* read_pam_file(const char* filename, Vec2I* dimensions);
+RGBA* read_png_file(const char* filename, Vec2I* dimensions);

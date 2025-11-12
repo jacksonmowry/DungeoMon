@@ -5,16 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-Vec2 tile_coords(Vec2 point, ssize_t tile_size, TileCorner corner) {
+Vec2I tile_coords(Vec2I point, ssize_t tile_size, TileCorner corner) {
     switch (corner) {
     case NORTH_WEST:
-        return vec2_mul(point, tile_size);
+        return vec2i_mul(point, tile_size);
     case NORTH_EAST:
-        return vec2_add(vec2_mul(point, tile_size), VEC2(tile_size - 1, 0));
+        return vec2i_add(vec2i_mul(point, tile_size), VEC2I(tile_size - 1, 0));
     case SOUTH_WEST:
-        return vec2_add(vec2_mul(point, tile_size), VEC2(0, tile_size - 1));
+        return vec2i_add(vec2i_mul(point, tile_size), VEC2I(0, tile_size - 1));
     case SOUTH_EAST:
-        return vec2_add(vec2_mul(point, tile_size), tile_size - 1);
+        return vec2i_add(vec2i_mul(point, tile_size), tile_size - 1);
     }
 }
 
@@ -38,8 +38,8 @@ void tilemap_deinit(Tilemap t) {
 }
 
 Tilemap tilemap_load(const char* pam_path, const char* tile_names_path,
-                     Vec2 tile_dims, Vec2 tile_gaps) {
-    Vec2 dimensions;
+                     Vec2I tile_dims, Vec2I tile_gaps) {
+    Vec2I dimensions;
     RGBA* pixels = read_pam_file(pam_path, &dimensions);
     char** tile_names = NULL;
     if (tile_names_path) {
@@ -54,7 +54,7 @@ Tilemap tilemap_load(const char* pam_path, const char* tile_names_path,
              i++) {
             char buf[256];
             if (fscanf(fp, "%s", buf) != 1) {
-                fprintf(stderr, "Error after reading %zu/%.0f tile names\n", i,
+                fprintf(stderr, "Error after reading %zu/%d tile names\n", i,
                         dimensions.x * dimensions.y);
                 exit(1);
             }
@@ -80,10 +80,9 @@ SKIP:;
         .pixels = pixels,
         .dimensions = dimensions,
         .dimensions_in_tiles =
-            VEC2((size_t)((size_t)dimensions.x / (size_t)tile_dims.x),
-                 (size_t)((size_t)dimensions.y / (size_t)tile_dims.y)),
-        .num_tiles = (size_t)((size_t)dimensions.x / (size_t)tile_dims.x) *
-                     (size_t)((size_t)dimensions.y / (size_t)tile_dims.y),
+            VEC2I((dimensions.x / tile_dims.x), (dimensions.y / tile_dims.y)),
+        .num_tiles =
+            (dimensions.x / tile_dims.x) * (dimensions.y / tile_dims.y),
 
         .tile_names = tile_names,
 

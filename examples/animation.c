@@ -38,9 +38,9 @@ int main(int argc, char* argv[]) {
     // Coordinates are in "tile space"
     // Velocity is initialized to (1,1), meaning it will move down and to the
     // right
-    Vec2 red_box =
-        VEC2((double)width_in_tiles / 2, (double)height_in_tiles / 2);
-    Vec2 red_box_velocity = VEC2_SPLAT(1);
+    Vec2I red_box =
+        VEC2I((double)width_in_tiles / 2, (double)height_in_tiles / 2);
+    Vec2I red_box_velocity = VEC2I_SPLAT(1);
 
     // 15FPS
     struct timespec frame_time = timespec_from_double(1 / (double)15);
@@ -62,8 +62,8 @@ int main(int argc, char* argv[]) {
         printf("\033[H");
         fflush(stdout);
         // A simple white box to show the outline of our render
-        r.draw_rect(r.state, (Vec2){.x = 0, .y = 0},
-                    tile_coords(VEC2(width_in_tiles - 1, height_in_tiles - 1),
+        r.draw_rect(r.state, (Vec2I){.x = 0, .y = 0},
+                    tile_coords(VEC2I(width_in_tiles - 1, height_in_tiles - 1),
                                 tile_dim, SE),
                     RGBA(WHITE));
 
@@ -73,15 +73,15 @@ int main(int argc, char* argv[]) {
                            RGBA(RED));
 
         // Check if would collide, if so update velocity
-        Vec2 new_pos = vec2_add(red_box, red_box_velocity);
+        Vec2I new_pos = vec2i_add(red_box, red_box_velocity);
         bool horizontal_collision =
             new_pos.x < 0 || new_pos.x >= width_in_tiles;
         bool vertical_collision = new_pos.y < 0 || new_pos.y >= height_in_tiles;
         red_box_velocity =
-            vec2_mul(red_box_velocity, VEC2(horizontal_collision ? -1 : 1,
-                                            vertical_collision ? -1 : 1));
+            vec2i_mul(red_box_velocity, VEC2I(horizontal_collision ? -1 : 1,
+                                              vertical_collision ? -1 : 1));
         // Update position
-        red_box = vec2_add(red_box, red_box_velocity);
+        red_box = vec2i_add(red_box, red_box_velocity);
 
         // Currently render clears the pixel buffer
         r.render(r.state);

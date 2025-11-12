@@ -43,7 +43,7 @@ bool map_save(const Map m, const char* filename, SaveMode mode) {
     for (size_t row = 0; row < m.dimensions.y; row++) {
         for (size_t col = 0; col < m.dimensions.x; col++) {
             size_t map_index = (row * m.dimensions.x) + col;
-            Vec2 tile = m.tiles[map_index];
+            Vec2I tile = m.tiles[map_index];
             size_t tile_index = (tile.y * m.t.dimensions_in_tiles.x) + tile.x;
 
             if (mode == TILE_NUM) {
@@ -113,14 +113,14 @@ Map map_load(const char* filename, Tilemap t) {
 
     // WIDTH x
     fgets(buf, sizeof(buf), fp);
-    if (sscanf(buf, "WIDTH %lf", &m.dimensions.x) != 1) {
+    if (sscanf(buf, "WIDTH %d", &m.dimensions.x) != 1) {
         fprintf(stderr, "Error while reading map, expected: WIDTH x, got: %s\n",
                 buf);
         exit(1);
     }
     // HEIGHT y
     fgets(buf, sizeof(buf), fp);
-    if (sscanf(buf, "HEIGHT %lf", &m.dimensions.y) != 1) {
+    if (sscanf(buf, "HEIGHT %d", &m.dimensions.y) != 1) {
         fprintf(stderr,
                 "Error while reading map, expected: HEIGHT y, got: %s\n", buf);
         exit(1);
@@ -164,19 +164,18 @@ Map map_load(const char* filename, Tilemap t) {
     for (size_t row = 0; row < m.dimensions.y; row++) {
         for (size_t col = 0; col < m.dimensions.x; col++) {
             size_t map_index = (row * m.dimensions.x) + col;
-            Vec2 tile_pos;
+            Vec2I tile_pos;
 
             if (sm == TILE_NUM) {
                 size_t tile_index;
                 if (fscanf(fp, "%zu", &tile_index) != 1) {
-                    fprintf(stderr, "Error reading tile %zu/%.0f\n", map_index,
+                    fprintf(stderr, "Error reading tile %zu/%d\n", map_index,
                             m.dimensions.x * m.dimensions.y);
                     exit(1);
                 }
 
-                tile_pos = VEC2(
-                    tile_index % (size_t)t.dimensions_in_tiles.x,
-                    (size_t)(tile_index / (size_t)t.dimensions_in_tiles.x));
+                tile_pos = VEC2I(tile_index % t.dimensions_in_tiles.x,
+                                 (tile_index / t.dimensions_in_tiles.x));
             } else {
                 assert(false);
             }
@@ -203,7 +202,7 @@ Map map_load(const char* filename, Tilemap t) {
         for (size_t col = 0; col < m.dimensions.x; col++) {
             size_t map_index = (row * m.dimensions.x) + col;
             if (fscanf(fp, "%hX", m.tile_attributes + map_index) != 1) {
-                fprintf(stderr, "Error reading tile attribute %zu/%.0f\n",
+                fprintf(stderr, "Error reading tile attribute %zu/%d\n",
                         map_index, m.dimensions.x * m.dimensions.y);
                 exit(1);
             }
@@ -228,7 +227,7 @@ Map map_load(const char* filename, Tilemap t) {
         for (size_t col = 0; col < m.dimensions.x; col++) {
             size_t map_index = (row * m.dimensions.x) + col;
             if (fscanf(fp, "%d", m.tile_rotations + map_index) != 1) {
-                fprintf(stderr, "Error reading tile rotation %zu/%.0f\n",
+                fprintf(stderr, "Error reading tile rotation %zu/%d\n",
                         map_index, m.dimensions.x * m.dimensions.y);
                 exit(1);
             }
@@ -240,7 +239,7 @@ Map map_load(const char* filename, Tilemap t) {
     return m;
 }
 
-int map_tile_attributes_debug(const Map m, const Vec2 pos, char* buf,
+int map_tile_attributes_debug(const Map m, const Vec2I pos, char* buf,
                               size_t buf_len) {
     const char* t = "true";
     const char* f = "false";
@@ -272,12 +271,12 @@ int map_tile_attributes_debug(const Map m, const Vec2 pos, char* buf,
         break;
     }
 
-    Vec2 actual_tile =
+    Vec2I actual_tile =
         m.tiles[(size_t)(pos.y * m.dimensions.x) + (size_t)pos.x];
 
     return snprintf(
         buf, buf_len - 1,
-        "Map Tile (%.0f, %.0f), Tile Name %s: {\r\n\t\"normal\": "
+        "Map Tile (%d, %d), Tile Name %s: {\r\n\t\"normal\": "
         "%s,\r\n\t\"horizontal_flip\": "
         "%s,\r\n\t\"vertical_flip\": %s,\r\n\t\"rotation\": %s,\r\n\t\"wall\": "
         "%s,\r\n\t\"enemy\": "

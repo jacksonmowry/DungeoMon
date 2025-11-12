@@ -3,6 +3,7 @@
 #include "sprites.h"
 #include "sx.h"
 #include "tile.h"
+#include "vec.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,12 +20,12 @@ int main(int argc, char* argv[]) {
 
     srand(time(NULL));
 
-    Vec2 tile_dims = VEC2(atoi(argv[2]), atoi(argv[3]));
-    Vec2 tile_gaps = VEC2(atoi(argv[4]), atoi(argv[5]));
+    Vec2I tile_dims = VEC2I(atoi(argv[2]), atoi(argv[3]));
+    Vec2I tile_gaps = VEC2I(atoi(argv[4]), atoi(argv[5]));
     Tilemap t = tilemap_load(argv[1], NULL, tile_dims, tile_gaps);
 
     // clang-format off
-    Vec2 map[20][30] = {
+    Vec2I map[20][30] = {
         {WALL_TOP_LEFT, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP_RIGHT},
         {WALL_LEFT, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, WALL_RIGHT},
         {WALL_LEFT, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, WALL_RIGHT},
@@ -49,40 +50,42 @@ int main(int argc, char* argv[]) {
     // clang-format on
     Renderer r = sx_init(240, 160, 5);
 
-    r.draw_map(r.state,
-               (Map){.t = t, .tiles = (Vec2*)map, .dimensions = VEC2(30, 20)});
+    r.draw_map(
+        r.state,
+        (Map){.t = t, .tiles = (Vec2I*)map, .dimensions = VEC2I(30, 20)});
 
     // Randomly add the exit door
-    r.draw_tile(r.state, VEC2(rand() % 28 + 1, 0), VEC2(0, 0), t, WALL_TOP_DOOR,
-                0, 0);
+    r.draw_tile(r.state, VEC2I(rand() % 28 + 1, 0), VEC2I(0, 0), t,
+                WALL_TOP_DOOR, 0, 0);
 
     // Randomly add some grass
     size_t grass_count = rand() % 24;
     for (size_t i = 0; i < grass_count; i++) {
-        Vec2 pos = VEC2(rand() % 28 + 1, rand() % 18 + 1);
+        Vec2I pos = VEC2I(rand() % 28 + 1, rand() % 18 + 1);
 
-        r.draw_tile(r.state, pos, VEC2(rand() % 3, rand() % 3), t, GRASS, 0, 0);
+        r.draw_tile(r.state, pos, VEC2I(rand() % 3, rand() % 3), t, GRASS, 0,
+                    0);
     }
 
     // Randomly add a campfire & tent
-    Vec2 pos1 = VEC2(rand() % 28 + 1, rand() % 18 + 1);
-    Vec2 pos2 = VEC2(rand() % 28 + 1, rand() % 18 + 1);
-    r.draw_tile(r.state, pos1, VEC2(0, 0), t, CAMPFIRE, 0, 0);
-    r.draw_tile(r.state, pos2, VEC2(0, 0), t, BUILDING_TENT, 0, 0);
+    Vec2I pos1 = VEC2I(rand() % 28 + 1, rand() % 18 + 1);
+    Vec2I pos2 = VEC2I(rand() % 28 + 1, rand() % 18 + 1);
+    r.draw_tile(r.state, pos1, VEC2I(0, 0), t, CAMPFIRE, 0, 0);
+    r.draw_tile(r.state, pos2, VEC2I(0, 0), t, BUILDING_TENT, 0, 0);
 
     // Add a goblin
-    Vec2 pos3 = VEC2(rand() % 28 + 1, rand() % 18 + 1);
-    r.draw_tile(r.state, pos3, VEC2(rand() % 3, rand() % 3), t, GOBLIN, 0, 0);
-    r.draw_tile(r.state, vec2_add(pos3, VEC2(0, 1)), VEC2(0, 0), t, PLAYER, 0,
-                0);
+    Vec2I pos3 = VEC2I(rand() % 28 + 1, rand() % 18 + 1);
+    r.draw_tile(r.state, pos3, VEC2I(rand() % 3, rand() % 3), t, GOBLIN, 0, 0);
+    r.draw_tile(r.state, vec2i_add(pos3, VEC2I(0, 1)), VEC2I(0, 0), t, PLAYER,
+                0, 0);
 
     r.draw_rect_filled(
-        r.state, tile_coords(VEC2(5, 3), t.tile_dimensions.x, NW),
-        tile_coords(VEC2(24, 6), t.tile_dimensions.x, SE), WHITE, BLACK);
+        r.state, tile_coords(VEC2I(5, 3), t.tile_dimensions.x, NW),
+        tile_coords(VEC2I(24, 6), t.tile_dimensions.x, SE), WHITE, BLACK);
     r.draw_text(r.state, "  You Encountered",
-                tile_coords(VEC2(6, 4), t.tile_dimensions.x, NW), WHITE, 1);
+                tile_coords(VEC2I(6, 4), t.tile_dimensions.x, NW), WHITE, 1);
     r.draw_text(r.state, "     A Goblin!",
-                tile_coords(VEC2(6, 5), t.tile_dimensions.x, NW), WHITE, 1);
+                tile_coords(VEC2I(6, 5), t.tile_dimensions.x, NW), WHITE, 1);
 
     r.render(r.state);
 

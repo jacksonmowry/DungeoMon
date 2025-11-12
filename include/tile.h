@@ -29,22 +29,22 @@ typedef enum TileRotation {
 // 0,0 is the top left of the screen
 // w-1,h-1 is the bottom right
 // Give the upper left coordinate of the provided tile
-Vec2 tile_coords(Vec2 point, ssize_t tile_size, TileCorner corner);
+Vec2I tile_coords(Vec2I point, ssize_t tile_size, TileCorner corner);
 
 typedef struct Tilemap {
     char* id;
 
     RGBA* pixels;
-    Vec2 dimensions;
-    Vec2 dimensions_in_tiles;
+    Vec2I dimensions;
+    Vec2I dimensions_in_tiles;
     size_t num_tiles;
 
     char** tile_names;
 
-    Vec2 tile_dimensions;
-    Vec2 tile_gaps;
+    Vec2I tile_dimensions;
+    Vec2I tile_gaps;
 } Tilemap;
 
 void tilemap_deinit(Tilemap t);
 Tilemap tilemap_load(const char* pam_path, const char* tile_names_path,
-                     Vec2 tile_dims, Vec2 tile_gaps);
+                     Vec2I tile_dims, Vec2I tile_gaps);
