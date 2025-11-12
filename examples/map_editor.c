@@ -3,7 +3,6 @@
 #include "map.h"
 #include "queue.h"
 #include "renderer.h"
-#include "sprites.h"
 #include "sx.h"
 #include "tile.h"
 #include "timespec.h"
@@ -389,9 +388,6 @@ int render_thread(void* arg) {
 CLEANUP:
     return 0;
 }
-
-LockableQueuePrototypes(char);
-LockableQueueImpl(char);
 
 int main(int argc, char* argv[]) {
     if (argc != 7) {
