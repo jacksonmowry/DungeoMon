@@ -1,4 +1,5 @@
 #include "color.h"
+#include "events.h"
 #include "map.h"
 #include "queue.h"
 #include "renderer.h"
@@ -62,6 +63,9 @@ typedef struct RenderArgs {
     int list_scroll_pos;
 
     atomic_bool dirty;
+
+    EventQueue events;
+    bool done;
 } RenderArgs;
 
 void* render_thread(void* arg) {
@@ -87,6 +91,82 @@ void* render_thread(void* arg) {
             goto SLEEP;
         }
 
+        /******************/
+        /* INPUT HANDLING */
+        /******************/
+        // We don't want to block rendering on events so we tryget
+        EventQueueResult event = lockable_queue_Event_tryget(&ra->events);
+        if (event.status == BLOCKED) {
+            // There's no background animations for now, so no need to redraw
+            // the ui
+            goto SLEEP;
+        }
+        switch (event.item.event_type) {
+
+        case NOP:
+            break;
+        case UP:
+            if (ra->selected) {
+                // Tile selection list
+                if (ra->picker_pos.y != 0) {
+                    // Move normally, we're not at the top
+                    ra->picker_pos.y -= 1;
+                } else if (ra->picker_pos.y == 0 && ra->list_scroll_pos != 0) {
+                    // We're at the bottom of the screen, scroll down
+                    ra->list_scroll_pos -= 1;
+                }
+            } else {
+                ra->tile_pos.y =
+                    ra->tile_pos.y != 0 ? ra->tile_pos.y - 1 : ra->tile_pos.y;
+            }
+            break;
+        case DOWN:
+            if (ra->selected) {
+                if (ra->picker_pos.y != 6) {
+                    // Move normally, we're not at the bottom
+                    ra->picker_pos.y += 1;
+                } else if (ra->picker_pos.y == 6) {
+                    // We're at the bottom of the screen, scroll down
+                    ra->list_scroll_pos += 1;
+                }
+            } else {
+                ra->tile_pos.y =
+                    ra->tile_pos.y != 19 ? ra->tile_pos.y + 1 : ra->tile_pos.y;
+            }
+            break;
+        case LEFT:
+            if (ra->selected) {
+                ra->picker_pos.x = ra->picker_pos.x != 0 ? ra->picker_pos.x - 1
+                                                         : ra->picker_pos.x;
+            } else {
+                ra->tile_pos.x =
+                    ra->tile_pos.x != 0 ? ra->tile_pos.x - 1 : ra->tile_pos.x;
+            }
+            break;
+        case RIGHT:
+            if (ra->selected) {
+                ra->picker_pos.x = ra->picker_pos.x != 11 ? ra->picker_pos.x + 1
+                                                          : ra->picker_pos.x;
+            } else {
+                ra->tile_pos.x =
+                    ra->tile_pos.x != 29 ? ra->tile_pos.x + 1 : ra->tile_pos.x;
+            }
+            break;
+        case ENTER:
+            ra->selected = true;
+            break;
+        case ESCAPE:
+            ra->selected = false;
+            break;
+        case QUIT:
+            ra->done = true;
+            goto CLEANUP;
+            break;
+        }
+
+        /*************/
+        /* RENDERING */
+        /*************/
         ra->r.draw_map(ra->r.state, ra->m);
 
         // Draw red outline
@@ -189,6 +269,7 @@ void* render_thread(void* arg) {
         nanosleep(&sleep_length, NULL);
     }
 
+CLEANUP:
     return NULL;
 }
 
@@ -203,9 +284,6 @@ int main(int argc, char* argv[]) {
                 argv[0]);
         return 1;
     }
-
-    LockableQueue_char q = lockable_queue_char_init(1);
-    lockable_queue_char_add(&q, 'a');
 
     srand(time(NULL));
 
@@ -250,96 +328,49 @@ int main(int argc, char* argv[]) {
         .list_scroll_pos = 0,
 
         .dirty = true,
+
+        .events = lockable_queue_Event_init(1),
+        .done = false,
     };
     pthread_t thread;
     pthread_create(&thread, NULL, render_thread, &ra);
 
     enableRawMode();
 
-    while (1) {
+    while (!ra.done) {
+        EventQueueResult result;
         char c = '\0';
         if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN)
             die("read");
-        if (iscntrl(c)) {
-            if (c == 13) {
-                // Enter
-                ra.selected = true;
-            } else if (c == 27) {
-                // Escapse
-                ra.selected = false;
-            }
-        } else if (ra.selected) {
-            // We're in the selection screen, so we want to be able to move
-            // around
-            switch (c) {
-            case 'h':
-                ra.picker_pos.x = ra.picker_pos.x != 0 ? ra.picker_pos.x - 1
-                                                       : ra.picker_pos.x;
-                break;
-            case 'j': {
-                if (ra.picker_pos.y != 6) {
-                    // Move normally, we're not at the bottom
-                    ra.picker_pos.y += 1;
-                } else if (ra.picker_pos.y == 6) {
-                    // We're at the bottom of the screen, scroll down
-                    ra.list_scroll_pos += 1;
-                }
-            } break;
-            case 'k': {
-                if (ra.picker_pos.y != 0) {
-                    // Move normally, we're not at the top
-                    ra.picker_pos.y -= 1;
-                } else if (ra.picker_pos.y == 0 && ra.list_scroll_pos != 0) {
-                    // We're at the bottom of the screen, scroll down
-                    ra.list_scroll_pos -= 1;
-                }
-            } break;
-            case 'l':
-                ra.picker_pos.x = ra.picker_pos.x != 11 ? ra.picker_pos.x + 1
-                                                        : ra.picker_pos.x;
-                break;
-            case 'q':
-                goto CLEANUP;
-            default:
-                break;
-            }
-            ra.dirty = true;
-        } else if (!ra.selected) {
-            // We can't enter this block unless the tile is unselected
-            switch (c) {
-            case 'h':
-                ra.tile_pos.x =
-                    ra.tile_pos.x != 0 ? ra.tile_pos.x - 1 : ra.tile_pos.x;
-                break;
-            case 'j':
-                ra.tile_pos.y =
-                    ra.tile_pos.y != 19 ? ra.tile_pos.y + 1 : ra.tile_pos.y;
-                break;
-            case 'k':
-                ra.tile_pos.y =
-                    ra.tile_pos.y != 0 ? ra.tile_pos.y - 1 : ra.tile_pos.y;
-                break;
-            case 'l':
-                ra.tile_pos.x =
-                    ra.tile_pos.x != 29 ? ra.tile_pos.x + 1 : ra.tile_pos.x;
-                break;
-            case 'q':
-                goto CLEANUP;
-            default:
-                break;
-            }
-            ra.dirty = true;
-        } else {
-            // Quitting should always work
-            switch (c) {
-            case 'q':
-                goto CLEANUP;
-            }
+        Event e = (Event){.event_type = NOP};
+        switch (c) {
+        case 13:
+            e.event_type = ENTER;
+            break;
+        case 27:
+            e.event_type = ESCAPE;
+        case 'h':
+            e.event_type = LEFT;
+            break;
+        case 'j':
+            e.event_type = DOWN;
+            break;
+        case 'k':
+            e.event_type = UP;
+            break;
+        case 'l':
+            e.event_type = RIGHT;
+            break;
+        case 'q':
+            e.event_type = QUIT;
+        default:
+            break;
         }
+
+        result = lockable_queue_Event_add(&ra.events, e);
     }
 
 CLEANUP:
-    pthread_cancel(thread);
     pthread_join(thread, NULL);
     printf("\n");
     r.cleanup(r.state);

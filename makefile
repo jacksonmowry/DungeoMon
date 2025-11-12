@@ -15,22 +15,22 @@ examples: bin/font_rendering \
 
 objs: obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
 
-bin/font_rendering: examples/font_rendering.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+bin/font_rendering: examples/font_rendering.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/animation: examples/animation.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+bin/animation: examples/animation.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/character_control: examples/character_control.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+bin/character_control: examples/character_control.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/sprites: examples/sprites.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+bin/sprites: examples/sprites.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/map: examples/map.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+bin/map: examples/map.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/map_editor: examples/map_editor.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
+bin/map_editor: examples/map_editor.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
 obj/timespec: src/timespec.c
@@ -50,6 +50,9 @@ obj/color: src/color.c
 
 obj/png_handler: src/png_handler.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude -lpng
+
+obj/events: src/events.c
+	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
 clean:
 	rm -f bin/* obj/*

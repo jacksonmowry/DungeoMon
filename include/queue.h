@@ -1,7 +1,11 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <threads.h>
+
+typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
 
 #define LockableQueuePrototypes(T)                                             \
     typedef struct LockableQueue_##T {                                         \
@@ -13,17 +17,19 @@
     } LockableQueue_##T;                                                       \
     typedef struct LockableQueue_##T##_Result {                                \
         T item;                                                                \
-        bool success;                                                          \
+        Result status;                                                         \
     } LockableQueue_##T##_Result;                                              \
     [[nodiscard]] LockableQueue_##T lockable_queue_##T##_init(                 \
         size_t capacity);                                                      \
     /* Will block until available to add, but drops the input if q is full */  \
-    void lockable_queue_##T##_add(LockableQueue_##T* q, T item);               \
-    [[nodiscard]] bool lockable_queue_##T##_tryadd(LockableQueue_##T q,        \
-                                                   T item);                    \
-    T lockable_queue_##T##_get(LockableQueue_##T q, T item);                   \
-    LockableQueue_##T##_Result lockable_queue_##T##_tryget(                    \
-        LockableQueue_##T q, T item)
+    [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_add(         \
+        LockableQueue_##T* q, T item);                                         \
+    [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_tryadd(      \
+        LockableQueue_##T* q, T item);                                         \
+    [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_get(         \
+        LockableQueue_##T* q);                                                 \
+    [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_tryget(      \
+        LockableQueue_##T* q)
 
 #define LockableQueueImpl(T)                                                   \
     [[nodiscard]] LockableQueue_##T lockable_queue_##T##_init(                 \
@@ -41,24 +47,75 @@
                                                                                \
         return lq;                                                             \
     }                                                                          \
-    void lockable_queue_##T##_add(LockableQueue_##T* q, T item) {              \
+    [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_add(         \
+        LockableQueue_##T* q, T item) {                                        \
+        LockableQueue_##T##_Result result = {0};                               \
         mtx_lock(&q->lock);                                                    \
         if (q->size != q->capacity) {                                          \
             q->items[(q->at + q->size++) % q->capacity] = item;                \
+            result.status = SUCCESS;                                           \
+        } else {                                                               \
+            result.status = FULL;                                              \
         }                                                                      \
         mtx_unlock(&q->lock);                                                  \
+                                                                               \
+        return result;                                                         \
     }                                                                          \
-    [[nodiscard]] bool lockable_queue_##T##_tryadd(LockableQueue_##T* q,       \
-                                                   T item) {                   \
-        int result = mtx_trylock(&q->lock);                                    \
-        if (result != thrd_success) {                                          \
-            return false;                                                      \
+    [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_tryadd(      \
+        LockableQueue_##T* q, T item) {                                        \
+        LockableQueue_##T##_Result result = {0};                               \
+        int mtx_result = mtx_trylock(&q->lock);                                \
+        if (mtx_result != thrd_success) {                                      \
+            result.status = BLOCKED;                                           \
+            return result;                                                     \
         }                                                                      \
                                                                                \
         if (q->size != q->capacity) {                                          \
             q->items[(q->at + q->size++) % q->capacity] = item;                \
+            result.status = SUCCESS;                                           \
+        } else {                                                               \
+            result.status = FULL;                                              \
         }                                                                      \
-        mtx_unlock(&q->lock);                                                  \
                                                                                \
-        return true;                                                           \
+        mtx_unlock(&q->lock);                                                  \
+        return result;                                                         \
+    }                                                                          \
+    [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_get(         \
+        LockableQueue_##T* q) {                                                \
+        LockableQueue_##T##_Result result = {0};                               \
+        mtx_lock(&q->lock);                                                    \
+                                                                               \
+        if (q->size != 0) {                                                    \
+            result.item = q->items[q->at];                                     \
+            q->at++;                                                           \
+            q->at %= q->capacity;                                              \
+            result.status = SUCCESS;                                           \
+        } else {                                                               \
+            result.status = EMPTY;                                             \
+        }                                                                      \
+                                                                               \
+        mtx_unlock(&q->lock);                                                  \
+        return result;                                                         \
+    }                                                                          \
+    [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_tryget(      \
+        LockableQueue_##T* q) {                                                \
+        LockableQueue_##T##_Result result = {0};                               \
+        int mtx_result = mtx_trylock(&q->lock);                                \
+        if (mtx_result != thrd_success) {                                      \
+            result.status = BLOCKED;                                           \
+            return result;                                                     \
+        }                                                                      \
+                                                                               \
+        if (q->size != 0) {                                                    \
+            result.item = q->items[q->at];                                     \
+            q->at++;                                                           \
+            q->at %= q->capacity;                                              \
+            q->size--;                                                         \
+            result.status = SUCCESS;                                           \
+        } else {                                                               \
+            result.status = EMPTY;                                             \
+        }                                                                      \
+                                                                               \
+        mtx_unlock(&q->lock);                                                  \
+        return result;                                                         \
     }
