@@ -65,6 +65,9 @@ typedef struct RenderArgs {
 
 int render_thread(void* arg) {
     RenderArgs* ra = (RenderArgs*)arg;
+    const size_t tiles_per_row = ((27 - 3) / 2);
+    const int rows_of_tiles = ra->t.num_tiles / tiles_per_row;
+    const int num_rendered_rows = (17 - 3) / 2;
 
     struct timespec frame_time = timespec_from_double(1 / (double)30);
 
@@ -92,8 +95,8 @@ int render_thread(void* arg) {
             // the ui
             goto SLEEP;
         }
-        switch (event.item.event_type) {
 
+        switch (event.item.event_type) {
         case NOP:
             break;
         case UP:
@@ -144,7 +147,36 @@ int render_thread(void* arg) {
             }
             break;
         case ENTER:
-            ra->selected = true;
+            if (!ra->selected) {
+                ra->selected = true;
+            } else {
+                // Tile select screen is up, we need to now replace the tile on
+                // the map with the currently selected tile
+                const int starting_tile_index =
+                    ra->list_scroll_pos * tiles_per_row;
+                Vec2 tile = VEC2(starting_tile_index %
+                                     (int)(ra->t.dimensions_in_tiles.x),
+                                 (int)(starting_tile_index /
+                                       (int)(ra->t.dimensions_in_tiles.x)));
+
+                int tile_offset = ((int)ra->picker_pos.y * tiles_per_row) +
+                                  (int)ra->picker_pos.x;
+                tile = vec2_add(
+                    tile,
+                    VEC2((int)(tile_offset % (int)ra->t.dimensions_in_tiles.x),
+                         (int)((int)tile_offset /
+                               (int)ra->t.dimensions_in_tiles.x)));
+
+                ra->m.tiles[((size_t)ra->tile_pos.y *
+                             (size_t)ra->m.dimensions.x) +
+                            (size_t)ra->tile_pos.x] = tile;
+                Vec2 result = ra->m.tiles[((size_t)ra->tile_pos.y *
+                                           (size_t)ra->m.dimensions.x) +
+                                          (size_t)ra->tile_pos.x];
+
+                ra->selected = false;
+                /* exit(1); */
+            }
             break;
         case ESCAPE:
             ra->selected = false;
@@ -173,10 +205,6 @@ int render_thread(void* arg) {
                 tile_coords(VEC2(2, 2), ra->t.tile_dimensions.x, NW),
                 tile_coords(VEC2(27, 17), ra->t.tile_dimensions.x, SE), WHITE,
                 (RGBA){.r = 0xAF, .g = 0xAF, .b = 0xAF, .a = 0xAF});
-
-            const size_t tiles_per_row = ((27 - 3) / 2);
-            const int rows_of_tiles = ra->t.num_tiles / tiles_per_row;
-            const int num_rendered_rows = (17 - 3) / 2;
 
             // First check if they attempted to scroll past the end
             if (ra->list_scroll_pos >=
@@ -243,8 +271,10 @@ int render_thread(void* arg) {
         fflush(stdout);
         ra->r.render(ra->r.state);
         printf("\n");
-        printf("'q' to quit, 'hjkl' to move left down up right, 'Enter' to "
-               "select a tile, 'Escape' to unselect a tile\n");
+        printf("'q'       to quit\r\n");
+        printf("'hjkl'    to move left down up right\r\n");
+        printf("'Enter'   to change a tile\r\n");
+        printf("'Escape'  to unselect a tile\r\n");
 
     SLEEP:;
         struct timespec frame_end = {0};
@@ -305,7 +335,7 @@ int main(int argc, char* argv[]) {
         {WALL_BOTTOM_LEFT, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_2, WALL_BOTTOM_1, WALL_BOTTOM_RIGHT}
     };
     // clang-format on
-    Renderer r = sx_init(240, 160, 3);
+    Renderer r = sx_init(240, 160, 2);
 
     RenderArgs ra = {
         .r = r,
@@ -325,11 +355,28 @@ int main(int argc, char* argv[]) {
 
     enableRawMode();
 
+    struct timespec frame_time = timespec_from_double(1 / (double)60);
+
+    struct timespec frame_prev = {0};
+    if (clock_gettime(CLOCK_REALTIME, &frame_prev) == -1) {
+        perror("clock_gettime");
+        exit(1);
+    }
+
     while (!ra.done) {
+        struct timespec frame_start = {0};
+        if (clock_gettime(CLOCK_REALTIME, &frame_start) == -1) {
+            perror("clock_gettime");
+            exit(1);
+        }
+        struct timespec next_frame = timespec_add(frame_start, frame_time);
+
         EventQueueResult result;
         char c = '\0';
-        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN)
+        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) {
             die("read");
+        }
+
         Event e = (Event){.event_type = NOP};
         switch (c) {
         case 13:
@@ -337,6 +384,7 @@ int main(int argc, char* argv[]) {
             break;
         case 27:
             e.event_type = ESCAPE;
+            break;
         case 'h':
             e.event_type = LEFT;
             break;
@@ -351,11 +399,25 @@ int main(int argc, char* argv[]) {
             break;
         case 'q':
             e.event_type = QUIT;
+            break;
         default:
+            goto SLEEP;
             break;
         }
 
         result = lockable_queue_Event_add(&ra.events, e);
+
+    SLEEP:;
+        struct timespec frame_end = {0};
+        if (clock_gettime(CLOCK_REALTIME, &frame_end) == -1) {
+            perror("clock_gettime");
+            exit(1);
+        }
+
+        frame_prev = frame_start;
+
+        struct timespec sleep_length = timespec_sub(next_frame, frame_end);
+        nanosleep(&sleep_length, NULL);
     }
 
 CLEANUP:
@@ -363,4 +425,5 @@ CLEANUP:
     printf("\n");
     r.cleanup(r.state);
     tilemap_deinit(t);
+    lockable_queue_Event_deinit(ra.events);
 }

@@ -21,6 +21,7 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
     } LockableQueue_##T##_Result;                                              \
     [[nodiscard]] LockableQueue_##T lockable_queue_##T##_init(                 \
         size_t capacity);                                                      \
+    void lockable_queue_##T##_deinit(LockableQueue_##T q);                     \
     /* Will block until available to add, but drops the input if q is full */  \
     [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_add(         \
         LockableQueue_##T* q, T item);                                         \
@@ -46,6 +47,11 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
         }                                                                      \
                                                                                \
         return lq;                                                             \
+    }                                                                          \
+    void lockable_queue_##T##_deinit(LockableQueue_##T q) {                    \
+        if (q.items) {                                                         \
+            free(q.items);                                                     \
+        }                                                                      \
     }                                                                          \
     [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_add(         \
         LockableQueue_##T* q, T item) {                                        \
