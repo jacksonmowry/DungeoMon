@@ -57,6 +57,7 @@ Tilemap tilemap_load(const char* pam_path, const char* tile_names_path,
 
             tile_names[i] = strdup(buf);
         }
+        fclose(fp);
     }
 
 SKIP:

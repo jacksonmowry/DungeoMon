@@ -117,6 +117,7 @@ RGBA* read_pam_file(const char* filename, Vec2* dimensions) {
             fread(pixels + index, sizeof(uint32_t), 1, fp);
         }
     }
+    fclose(fp);
 
     dimensions->x = width;
     dimensions->y = height;

@@ -2,6 +2,7 @@
 
 #include "tile.h"
 #include "vec.h"
+#include <stdbool.h>
 
 #define TILE_NORMAL (0 << 0)
 #define TILE_HORIZONTAL_FLIP (1 << 0)
@@ -31,6 +32,14 @@ typedef struct Map {
 
     Vec2 dimensions;
 } Map;
+
+bool map_save(const Map m, const char* filename);
+
+// TODO take a look into data ownership here
+// We need to be given a tilemap because we store it directly for now
+// This copies some of the data but not any of the important stuff that's
+// allocated In the future we may way to just take this in by pointer
+Map map_load(const char* filename, Tilemap t);
 
 int map_tile_attributes_debug(const Map m, const Vec2 pos, char* buf,
                               size_t buf_len);

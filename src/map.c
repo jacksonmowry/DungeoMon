@@ -1,6 +1,17 @@
 #include "map.h"
 #include <stdbool.h>
 
+bool map_save(const Map m, const char* filename) {
+    FILE* fp = fopen(filename, "w");
+
+    fprintf("WIDTH %d\n", (int)m.dimensions.x);
+    fprintf("HEIGHT %d\n", (int)m.dimensions.y);
+
+    fclose(fp);
+}
+
+Map map_load(const char* filename, Tilemap t);
+
 int map_tile_attributes_debug(const Map m, const Vec2 pos, char* buf,
                               size_t buf_len) {
     const char* t = "true";
