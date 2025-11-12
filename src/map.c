@@ -44,8 +44,10 @@ int map_tile_attributes_debug(const Map m, const Vec2 pos, char* buf,
         "%s,\r\n\t\"enemy\": "
         "%s,\r\n\t\"door\": %s,\r\n\t\"stairs\": %s,\r\n\t\"loot\": %s\r\n}",
         pos.x, pos.y,
-        m.t.tile_names[(size_t)(actual_tile.y * m.t.dimensions_in_tiles.x) +
-                       (size_t)actual_tile.x],
+        m.t.tile_names ? m.t.tile_names[(size_t)(actual_tile.y *
+                                                 m.t.dimensions_in_tiles.x) +
+                                        (size_t)actual_tile.x]
+                       : "n/a",
         normal, horizontal_flip, vertical_flip, rotation, wall, enemy, door,
         stairs, loot);
 }
