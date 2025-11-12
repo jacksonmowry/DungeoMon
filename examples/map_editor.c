@@ -8,9 +8,7 @@
 #include "tile.h"
 #include "timespec.h"
 #include <assert.h>
-#include <ctype.h>
 #include <errno.h>
-#include <stdatomic.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,8 +59,6 @@ typedef struct RenderArgs {
     bool selected;
     int list_scroll_pos;
 
-    atomic_bool dirty;
-
     EventQueue events;
     bool done;
 } RenderArgs;
@@ -85,10 +81,6 @@ int render_thread(void* arg) {
             exit(1);
         }
         struct timespec next_frame = timespec_add(frame_start, frame_time);
-
-        if (!ra->dirty) {
-            goto SLEEP;
-        }
 
         /******************/
         /* INPUT HANDLING */
@@ -253,7 +245,6 @@ int render_thread(void* arg) {
         printf("\n");
         printf("'q' to quit, 'hjkl' to move left down up right, 'Enter' to "
                "select a tile, 'Escape' to unselect a tile\n");
-        /* ra->dirty = false; */
 
     SLEEP:;
         struct timespec frame_end = {0};
@@ -325,8 +316,6 @@ int main(int argc, char* argv[]) {
         .picker_pos = {0},
         .selected = false,
         .list_scroll_pos = 0,
-
-        .dirty = true,
 
         .events = lockable_queue_Event_init(1),
         .done = false,
