@@ -396,9 +396,10 @@ LockableQueuePrototypes(char);
 LockableQueueImpl(char);
 
 int main(int argc, char* argv[]) {
-    if (argc != 6) {
+    if (argc != 7) {
         fprintf(stderr,
-                "usage: %s sprite_sheet.png tile_width tile_height "
+                "usage: %s sprite_sheet.png sprite_sheet_names.txt tile_width "
+                "tile_height "
                 "horizontal_gap vertical_gap\n",
                 argv[0]);
         return 1;
@@ -406,9 +407,10 @@ int main(int argc, char* argv[]) {
 
     srand(time(NULL));
 
-    Vec2 tile_dims = VEC2(atoi(argv[2]), atoi(argv[3]));
-    Vec2 tile_gaps = VEC2(atoi(argv[4]), atoi(argv[5]));
-    Tilemap t = tilemap_load_png(argv[1], tile_dims, tile_gaps);
+    Vec2 tile_dims = VEC2(atoi(argv[3]), atoi(argv[4]));
+    Vec2 tile_gaps = VEC2(atoi(argv[5]), atoi(argv[6]));
+    Tilemap t = tilemap_load(argv[1], argv[2], tile_dims, tile_gaps);
+    /* exit(1); */
 
     // clang-format off
     Vec2 map[20][30] = {

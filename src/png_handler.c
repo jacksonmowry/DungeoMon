@@ -21,10 +21,107 @@
 
 #include <fcntl.h>
 #include <png.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
+RGBA* read_pam_file(const char* filename, Vec2* dimensions) {
+    int width, height;
+
+    FILE* fp = fopen(filename, "rb");
+    if (!fp) {
+        perror(filename);
+        exit(1);
+    }
+
+    char buf[256];
+
+    // P7
+    fgets(buf, sizeof(buf), fp);
+    if (strncmp("P7", buf, 2)) {
+        fprintf(stderr,
+                "Error parsing PAM image file, expecting: P7, got: %s\n", buf);
+        exit(1);
+    }
+    // WIDTH x
+    fgets(buf, sizeof(buf), fp);
+    if (strncmp("WIDTH", buf, 5)) {
+        fprintf(stderr,
+                "Error parsing PAM image file, expecting: WIDTH x, got: %s\n",
+                buf);
+        exit(1);
+    }
+    if (sscanf(buf, "WIDTH %d", &width) != 1) {
+        fprintf(stderr,
+                "Error parsing PAM image file, expecting: WIDTH x, got: %s\n",
+                buf);
+        exit(1);
+    }
+    // HEIGHT y
+    fgets(buf, sizeof(buf), fp);
+    if (strncmp("HEIGHT", buf, 6)) {
+        fprintf(stderr,
+                "Error parsing PAM image file, expecting: HEIGHT y, got: %s\n",
+                buf);
+        exit(1);
+    }
+    if (sscanf(buf, "HEIGHT %d", &height) != 1) {
+        fprintf(stderr,
+                "Error parsing PAM image file, expecting: HEIGHT y, got: %s\n",
+                buf);
+        exit(1);
+    }
+    // DEPTH 4
+    fgets(buf, sizeof(buf), fp);
+    if (strncmp("DEPTH 4", buf, 7)) {
+        fprintf(stderr,
+                "Error parsing PAM image file, expecting: DEPTH 4, got: %s\n",
+                buf);
+        exit(1);
+    }
+    // MAXVAL 255
+    fgets(buf, sizeof(buf), fp);
+    if (strncmp("MAXVAL 255", buf, 10)) {
+        fprintf(
+            stderr,
+            "Error parsing PAM image file, expecting: MAXVAL 255, got: %s\n",
+            buf);
+        exit(1);
+    }
+    // TUPLTYPE RGB_ALPHA
+    fgets(buf, sizeof(buf), fp);
+    if (strncmp("TUPLTYPE RGB_ALPHA", buf, 18)) {
+        fprintf(stderr,
+                "Error parsing PAM image file, expecting: TUPLTYPE "
+                "RGB_ALPHA, got: %s\n",
+                buf);
+        exit(1);
+    }
+    // ENDHDR
+    fgets(buf, sizeof(buf), fp);
+    if (strncmp("ENDHDR", buf, 6)) {
+        fprintf(stderr,
+                "Error parsing PAM image file, expecting: ENDHDR, got: %s\n",
+                buf);
+        exit(1);
+    }
+
+    RGBA* pixels = malloc(width * height * sizeof(*pixels));
+    for (size_t row = 0; row < height; row++) {
+        for (size_t col = 0; col < width; col++) {
+            size_t index = (row * width) + col;
+
+            fread(pixels + index, sizeof(uint32_t), 1, fp);
+        }
+    }
+
+    dimensions->x = width;
+    dimensions->y = height;
+    return pixels;
+}
 
 RGBA* read_png_file(const char* filename, Vec2* dimensions) {
     int width, height;

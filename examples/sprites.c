@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
 
     Vec2 tile_dims = VEC2(atoi(argv[2]), atoi(argv[3]));
     Vec2 tile_gaps = VEC2(atoi(argv[4]), atoi(argv[5]));
-    Tilemap t = tilemap_load_png(argv[1], tile_dims, tile_gaps);
+    Tilemap t = tilemap_load(argv[1], NULL, tile_dims, tile_gaps);
 
     Renderer r = sx_init(t.dimensions.x, t.dimensions.y, 6);
 

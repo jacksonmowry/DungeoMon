@@ -37,9 +37,12 @@ typedef struct Tilemap {
     Vec2 dimensions_in_tiles;
     size_t num_tiles;
 
+    char** tile_names;
+
     Vec2 tile_dimensions;
     Vec2 tile_gaps;
 } Tilemap;
 
 void tilemap_deinit(Tilemap t);
-Tilemap tilemap_load_png(const char* png_path, Vec2 tile_dims, Vec2 tile_gaps);
+Tilemap tilemap_load(const char* pam_path, const char* tile_names_path,
+                     Vec2 tile_dims, Vec2 tile_gaps);
