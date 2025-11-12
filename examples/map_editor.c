@@ -10,7 +10,6 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <pthread.h>
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -68,7 +67,7 @@ typedef struct RenderArgs {
     bool done;
 } RenderArgs;
 
-void* render_thread(void* arg) {
+int render_thread(void* arg) {
     RenderArgs* ra = (RenderArgs*)arg;
 
     struct timespec frame_time = timespec_from_double(1 / (double)30);
@@ -270,7 +269,7 @@ void* render_thread(void* arg) {
     }
 
 CLEANUP:
-    return NULL;
+    return 0;
 }
 
 LockableQueuePrototypes(char);
@@ -332,8 +331,8 @@ int main(int argc, char* argv[]) {
         .events = lockable_queue_Event_init(1),
         .done = false,
     };
-    pthread_t thread;
-    pthread_create(&thread, NULL, render_thread, &ra);
+    thrd_t thread;
+    thrd_create(&thread, render_thread, &ra);
 
     enableRawMode();
 
@@ -371,7 +370,7 @@ int main(int argc, char* argv[]) {
     }
 
 CLEANUP:
-    pthread_join(thread, NULL);
+    thrd_join(thread, NULL);
     printf("\n");
     r.cleanup(r.state);
     tilemap_deinit(t);
