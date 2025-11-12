@@ -19,6 +19,10 @@ Vec2 tile_coords(Vec2 point, ssize_t tile_size, TileCorner corner) {
 }
 
 void tilemap_deinit(Tilemap t) {
+    if (t.id) {
+        free(t.id);
+    }
+
     if (t.pixels) {
         free(t.pixels);
         t.pixels = NULL;
@@ -60,8 +64,19 @@ Tilemap tilemap_load(const char* pam_path, const char* tile_names_path,
         fclose(fp);
     }
 
-SKIP:
+SKIP:;
+    char* name = NULL;
+    name = realpath(pam_path, name);
+    char* last_slash = strrchr(name, '/');
+    last_slash++;
+    *strrchr(last_slash, '.') = '\0';
+    char* tilemap_id = strdup(last_slash);
+
+    free(name);
+
     return (Tilemap){
+        .id = tilemap_id,
+
         .pixels = pixels,
         .dimensions = dimensions,
         .dimensions_in_tiles =

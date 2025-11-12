@@ -33,7 +33,14 @@ typedef struct Map {
     Vec2 dimensions;
 } Map;
 
-bool map_save(const Map m, const char* filename);
+typedef enum SaveMode {
+    TILE_NUM,
+    TILE_NAME,
+} SaveMode;
+
+void map_deinit(Map m);
+
+bool map_save(const Map m, const char* filename, SaveMode mode);
 
 // TODO take a look into data ownership here
 // We need to be given a tilemap because we store it directly for now
