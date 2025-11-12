@@ -102,8 +102,7 @@ void draw_tile(void* state, Vec2I dest_tile, Vec2I tile_shift, Tilemap t,
     for (size_t row = 0; row < t.tile_dimensions.x; row++) {
         for (size_t col = 0; col < t.tile_dimensions.y; col++) {
             size_t tilemap_index =
-                (((size_t)tilemap_nw.y + row) * (size_t)t.dimensions.x) +
-                (size_t)tilemap_nw.x + col;
+                ((tilemap_nw.y + row) * t.dimensions.x) + tilemap_nw.x + col;
 
             Vec2I draw_location;
             switch (rot) {
@@ -142,7 +141,7 @@ void draw_map(void* state, Map m) {
     for (size_t row = 0; row < m.dimensions.y; row++) {
         for (size_t col = 0; col < m.dimensions.x; col++) {
             Vec2I pos = tile_coords(VEC2I(col, row), m.t.tile_dimensions.x, NW);
-            size_t index = (row * (size_t)m.dimensions.x) + col;
+            size_t index = (row * m.dimensions.x) + col;
             draw_tile(state, VEC2I(col, row), VEC2I(0, 0), m.t, m.tiles[index],
                       m.tile_rotations ? m.tile_rotations[index] : 0,
                       m.tile_attributes ? m.tile_attributes[index] : 0);

@@ -185,7 +185,7 @@ int render_thread(void* arg) {
             break;
         case W: {
             size_t index =
-                (ra->tile_pos.y * (size_t)ra->m.dimensions.x) + ra->tile_pos.x;
+                (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
             ra->m.tile_attributes[index] ^= TILE_WALL;
         } break;
         case ENTER:
@@ -234,7 +234,7 @@ int render_thread(void* arg) {
             // attribute
             for (size_t row = 0; row < ra->m.dimensions.y; row++) {
                 for (size_t col = 0; col < ra->m.dimensions.x; col++) {
-                    size_t index = (row * (size_t)ra->m.dimensions.x) + col;
+                    size_t index = (row * ra->m.dimensions.x) + col;
                     if (ra->m.tile_attributes[index] &
                         (1 << (ra->attribute_overlay - 1))) {
                         Vec2I pos = VEC2I(col, row);

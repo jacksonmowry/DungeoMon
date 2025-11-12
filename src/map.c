@@ -32,8 +32,8 @@ bool map_save(const Map m, const char* filename, SaveMode mode) {
         exit(1);
     }
 
-    fprintf(fp, "WIDTH      %d\n", (int)m.dimensions.x);
-    fprintf(fp, "HEIGHT     %d\n", (int)m.dimensions.y);
+    fprintf(fp, "WIDTH      %d\n", m.dimensions.x);
+    fprintf(fp, "HEIGHT     %d\n", m.dimensions.y);
     fprintf(fp, "TILEMAP ID %s\n", m.t.id);
     fprintf(fp, "MODE       %s\n",
             (mode == TILE_NUM) ? "tile_num" : "tile_name");
@@ -271,8 +271,7 @@ int map_tile_attributes_debug(const Map m, const Vec2I pos, char* buf,
         break;
     }
 
-    Vec2I actual_tile =
-        m.tiles[(size_t)(pos.y * m.dimensions.x) + (size_t)pos.x];
+    Vec2I actual_tile = m.tiles[(pos.y * m.dimensions.x) + pos.x];
 
     return snprintf(
         buf, buf_len - 1,
@@ -282,10 +281,10 @@ int map_tile_attributes_debug(const Map m, const Vec2I pos, char* buf,
         "%s,\r\n\t\"enemy\": "
         "%s,\r\n\t\"door\": %s,\r\n\t\"stairs\": %s,\r\n\t\"loot\": %s\r\n}",
         pos.x, pos.y,
-        m.t.tile_names ? m.t.tile_names[(size_t)(actual_tile.y *
-                                                 m.t.dimensions_in_tiles.x) +
-                                        (size_t)actual_tile.x]
-                       : "n/a",
+        m.t.tile_names
+            ? m.t.tile_names[(actual_tile.y * m.t.dimensions_in_tiles.x) +
+                             actual_tile.x]
+            : "n/a",
         normal, horizontal_flip, vertical_flip, rotation, wall, enemy, door,
         stairs, loot);
 }

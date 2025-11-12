@@ -25,9 +25,9 @@ int main(int argc, char* argv[]) {
 
     for (size_t i = 0; i < t.dimensions.y; i++) {
         for (size_t j = 0; j < t.dimensions.x; j++) {
-            RGBA p = t.pixels[(i * (size_t)t.dimensions.x) + j];
+            RGBA p = t.pixels[(i * t.dimensions.x) + j];
             r.draw_pixel(r.state, VEC2I(j, i),
-                         t.pixels[(i * (size_t)t.dimensions.x) + j]);
+                         t.pixels[(i * t.dimensions.x) + j]);
         }
     }
 
@@ -50,8 +50,7 @@ int main(int argc, char* argv[]) {
         if (col == 0) {
             r.draw_tile(r.state, dest_top, VEC2I(0, 0), t, tl, 0, 0);
             r.draw_tile(r.state, dest_bot, VEC2I(0, 0), t, bl, 0, 0);
-        } else if (col ==
-                   (size_t)t.dimensions.x / (size_t)t.tile_dimensions.x - 1) {
+        } else if (col == t.dimensions.x / t.tile_dimensions.x - 1) {
             r.draw_tile(r.state, dest_top, VEC2I(0, 0), t, tr, 0, 0);
             r.draw_tile(r.state, dest_bot, VEC2I(0, 0), t, br, 0, 0);
         } else {
@@ -70,10 +69,9 @@ int main(int argc, char* argv[]) {
     for (size_t row = 1; row < t.dimensions.y / t.tile_dimensions.y - 1;
          row++) {
         r.draw_tile(r.state, VEC2I(0, row), VEC2I(0, 0), t, left_wall, 0, 0);
-        r.draw_tile(
-            r.state,
-            VEC2I((size_t)(t.dimensions.x / t.tile_dimensions.x) - 1, row),
-            VEC2I(0, 0), t, right_wall, 0, 0);
+        r.draw_tile(r.state,
+                    VEC2I((t.dimensions.x / t.tile_dimensions.x) - 1, row),
+                    VEC2I(0, 0), t, right_wall, 0, 0);
     }
 
     Vec2I fire = VEC2I(8, 8);
