@@ -151,7 +151,8 @@ void draw_map(void* state, Map m) {
 
 static int sixel_write(char* data, int size, void* priv) {
     FILE* f = (FILE*)priv;
-    return write(f->_fileno, data, size);
+    /* return write(f->_fileno, data, size); */
+    return fwrite(data, size, 1, f);
 }
 
 static double slope(double x1, double y1, double x2, double y2) {
