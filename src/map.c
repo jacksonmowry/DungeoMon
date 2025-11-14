@@ -2,7 +2,6 @@
 #include "vec.h"
 #include <assert.h>
 #include <ctype.h>
-#include <linux/limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
