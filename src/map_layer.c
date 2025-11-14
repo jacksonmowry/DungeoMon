@@ -14,13 +14,12 @@ typedef struct MapState {
     Layer* l;
 } MapState;
 
-LayerEventResponse handle_input(void* state, Event e) {
+static LayerEventResponse handle_input(void* state, Event e) {
     MapState* s = (MapState*)state;
     LayerEventResponse response = {0};
 
     size_t index = (s->tile_pos.y * s->m->dimensions.x) + s->tile_pos.x;
     switch (e.event_type) {
-    case NOP:
     case UP:
         s->tile_pos.y = s->tile_pos.y != 0 ? s->tile_pos.y - 1 : s->tile_pos.y;
         response.status = HANLDED;
@@ -66,22 +65,30 @@ LayerEventResponse handle_input(void* state, Event e) {
         response.status = HANLDED;
         break;
     case ENTER:
-        // TODO construct the list layer here to be pushed
         s->l = calloc(1, sizeof(*s->l));
-        *s->l = tile_selection_list_init(s->m, &s->tile_pos);
+        *s->l = tile_selection_list_init(s->r, s->m, &s->tile_pos);
 
         response.status = PUSH;
         response.l = s->l;
         break;
-    case ESCAPE:
     case QUIT:
+        response.status = POP;
+        break;
+    case POPPED:
+        if (s->l) {
+            free(s->l);
+        }
+        s->l = NULL;
+        response.status = HANLDED;
+        break;
+    default:
         break;
     }
 
     return response;
 }
 
-void render(void* state) {
+static void render(void* state) {
     MapState* s = (MapState*)state;
 
     s->r->draw_map(s->r->state, *s->m);

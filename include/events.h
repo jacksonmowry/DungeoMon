@@ -17,7 +17,8 @@ typedef struct Event {
         W,
         ENTER,
         ESCAPE,
-        QUIT
+        QUIT,
+        POPPED
     } event_type;
 } Event;
 

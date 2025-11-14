@@ -1,6 +1,8 @@
 #include "color.h"
 #include "events.h"
+#include "layer.h"
 #include "map.h"
+#include "map_layer.h"
 #include "queue.h"
 #include "renderer.h"
 #include "sx.h"
@@ -9,6 +11,7 @@
 #include "vec.h"
 #include <assert.h>
 #include <errno.h>
+#include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,11 +70,17 @@ typedef struct RenderArgs {
     int attribute_overlay;
 } RenderArgs;
 
-int render_thread(void* arg) {
+void* render_thread(void* arg) {
     RenderArgs* ra = (RenderArgs*)arg;
-    const size_t tiles_per_row = ((27 - 3) / 2);
-    const int rows_of_tiles = ra->t.num_tiles / tiles_per_row;
-    const int num_rendered_rows = (17 - 3) / 2;
+    /* const size_t tiles_per_row = ((27 - 3) / 2); */
+    /* const int rows_of_tiles = ra->t.num_tiles / tiles_per_row; */
+    /* const int num_rendered_rows = (17 - 3) / 2; */
+
+    Layer* layer_stack[3];
+    int layers = 0;
+    layer_stack[0] = malloc(sizeof(Layer));
+    *layer_stack[0] = map_layer_init(&ra->r, &ra->m);
+    layers++;
 
     struct timespec frame_time = timespec_from_double(1 / (double)30);
 
@@ -81,7 +90,7 @@ int render_thread(void* arg) {
         exit(1);
     }
 
-    while (true) {
+    while (layers != 0) {
         struct timespec frame_start = {0};
         if (clock_gettime(CLOCK_REALTIME, &frame_start) == -1) {
             perror("clock_gettime");
@@ -100,229 +109,290 @@ int render_thread(void* arg) {
             goto SLEEP;
         }
 
-        switch (event.item.event_type) {
-        case NOP:
-            break;
-        case UP:
-            if (ra->selected) {
-                // Tile selection list
-                if (ra->picker_pos.y != 0) {
-                    // Move normally, we're not at the top
-                    ra->picker_pos.y -= 1;
-                } else if (ra->picker_pos.y == 0 && ra->list_scroll_pos != 0) {
-                    // We're at the bottom of the screen, scroll down
-                    ra->list_scroll_pos -= 1;
+    INPUT_LOOP:
+        for (int i = layers - 1; i >= 0; i--) {
+            LayerEventResponse response =
+                layer_stack[i]->handle_input(layer_stack[i]->state, event.item);
+
+            switch (response.status) {
+            case IGNORED:
+                continue;
+            case HANLDED:
+                goto RENDER_LOOP;
+            case POP:
+                event.item.event_type = POPPED;
+                if (i != 0) {
+                    layer_stack[i - 1]->handle_input(layer_stack[i - 1]->state,
+                                                     event.item);
+                } else {
+                    goto CLEANUP;
                 }
-            } else {
-                ra->tile_pos.y =
-                    ra->tile_pos.y != 0 ? ra->tile_pos.y - 1 : ra->tile_pos.y;
+                layers--;
+                goto RENDER_LOOP;
+            case PUSH:
+                layer_stack[layers] = response.l;
+                layers++;
+                break;
             }
-            break;
-        case DOWN:
-            if (ra->selected) {
-                if (ra->picker_pos.y != 6) {
-                    // Move normally, we're not at the bottom
-                    ra->picker_pos.y += 1;
-                } else if (ra->picker_pos.y == 6) {
-                    // We're at the bottom of the screen, scroll down
-                    ra->list_scroll_pos += 1;
-                }
-            } else {
-                ra->tile_pos.y =
-                    ra->tile_pos.y != 19 ? ra->tile_pos.y + 1 : ra->tile_pos.y;
-            }
-            break;
-        case LEFT:
-            if (ra->selected) {
-                ra->picker_pos.x = ra->picker_pos.x != 0 ? ra->picker_pos.x - 1
-                                                         : ra->picker_pos.x;
-            } else {
-                ra->tile_pos.x =
-                    ra->tile_pos.x != 0 ? ra->tile_pos.x - 1 : ra->tile_pos.x;
-            }
-            break;
-        case RIGHT:
-            if (ra->selected) {
-                ra->picker_pos.x = ra->picker_pos.x != 11 ? ra->picker_pos.x + 1
-                                                          : ra->picker_pos.x;
-            } else {
-                ra->tile_pos.x =
-                    ra->tile_pos.x != 29 ? ra->tile_pos.x + 1 : ra->tile_pos.x;
-            }
-            break;
-        case R:
-            if (!ra->selected) {
-                size_t index =
-                    (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
-                ra->m.tile_rotations[index] =
-                    (ra->m.tile_rotations[index] + 1) % 4;
-            }
-            break;
-        case V:
-            if (!ra->selected) {
-                size_t index =
-                    (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
-                ra->m.tile_attributes[index] ^= TILE_VERTICAL_FLIP;
-            }
-            break;
-        case B:
-            if (!ra->selected) {
-                size_t index =
-                    (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
-                ra->m.tile_attributes[index] ^= TILE_HORIZONTAL_FLIP;
-            }
-            break;
-        case D:
-            ra->debug = !ra->debug;
-            printf("\033[2J");
-            break;
-        case T:
-            if (ra->debug) {
-                ra->attribute_overlay =
-                    (ra->attribute_overlay + 1) % TILE_NUM_ATTRIBUTES;
-            }
-            break;
-        case W: {
-            size_t index =
-                (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
-            ra->m.tile_attributes[index] ^= TILE_WALL;
-        } break;
-        case ENTER:
-            if (!ra->selected) {
-                ra->selected = true;
-            } else {
-                // Tile select screen is up, we need to now replace the tile on
-                // the map with the currently selected tile
-                const int starting_tile_index =
-                    ra->list_scroll_pos * tiles_per_row;
-                Vec2I tile = VEC2I(
-                    starting_tile_index % (ra->t.dimensions_in_tiles.x),
-                    (starting_tile_index / (ra->t.dimensions_in_tiles.x)));
-
-                int tile_offset =
-                    (ra->picker_pos.y * tiles_per_row) + ra->picker_pos.x;
-                tile = vec2i_add(
-                    tile, VEC2I((tile_offset % ra->t.dimensions_in_tiles.x),
-                                (tile_offset / ra->t.dimensions_in_tiles.x)));
-
-                ra->m.tiles[(ra->tile_pos.y * ra->m.dimensions.x) +
-                            ra->tile_pos.x] = tile;
-                Vec2I result =
-                    ra->m.tiles[(ra->tile_pos.y * ra->m.dimensions.x) +
-                                ra->tile_pos.x];
-
-                ra->selected = false;
-            }
-            break;
-        case ESCAPE:
-            ra->selected = false;
-            break;
-        case QUIT:
-            ra->done = true;
-            goto CLEANUP;
-            break;
         }
+
+    RENDER_LOOP:
+        for (int i = 0; i < layers; i++) {
+            layer_stack[i]->render(layer_stack[i]->state);
+        }
+
+        /* switch (event.item.event_type) { */
+        /* case NOP: */
+        /*     break; */
+        /* case UP: */
+        /*     if (ra->selected) { */
+        /*         // Tile selection list */
+        /*         if (ra->picker_pos.y != 0) { */
+        /*             // Move normally, we're not at the top */
+        /*             ra->picker_pos.y -= 1; */
+        /*         } else if (ra->picker_pos.y == 0 && ra->list_scroll_pos != 0)
+         * { */
+        /*             // We're at the bottom of the screen, scroll down */
+        /*             ra->list_scroll_pos -= 1; */
+        /*         } */
+        /*     } else { */
+        /*         ra->tile_pos.y = */
+        /*             ra->tile_pos.y != 0 ? ra->tile_pos.y - 1 :
+         * ra->tile_pos.y; */
+        /*     } */
+        /*     break; */
+        /* case DOWN: */
+        /*     if (ra->selected) { */
+        /*         if (ra->picker_pos.y != 6) { */
+        /*             // Move normally, we're not at the bottom */
+        /*             ra->picker_pos.y += 1; */
+        /*         } else if (ra->picker_pos.y == 6) { */
+        /*             // We're at the bottom of the screen, scroll down */
+        /*             ra->list_scroll_pos += 1; */
+        /*         } */
+        /*     } else { */
+        /*         ra->tile_pos.y = */
+        /*             ra->tile_pos.y != 19 ? ra->tile_pos.y + 1 :
+         * ra->tile_pos.y; */
+        /*     } */
+        /*     break; */
+        /* case LEFT: */
+        /*     if (ra->selected) { */
+        /*         ra->picker_pos.x = ra->picker_pos.x != 0 ? ra->picker_pos.x -
+         * 1 */
+        /*                                                  : ra->picker_pos.x;
+         */
+        /*     } else { */
+        /*         ra->tile_pos.x = */
+        /*             ra->tile_pos.x != 0 ? ra->tile_pos.x - 1 :
+         * ra->tile_pos.x; */
+        /*     } */
+        /*     break; */
+        /* case RIGHT: */
+        /*     if (ra->selected) { */
+        /*         ra->picker_pos.x = ra->picker_pos.x != 11 ? ra->picker_pos.x
+         * + 1 */
+        /*                                                   : ra->picker_pos.x;
+         */
+        /*     } else { */
+        /*         ra->tile_pos.x = */
+        /*             ra->tile_pos.x != 29 ? ra->tile_pos.x + 1 :
+         * ra->tile_pos.x; */
+        /*     } */
+        /*     break; */
+        /* case R: */
+        /*     if (!ra->selected) { */
+        /*         size_t index = */
+        /*             (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
+         */
+        /*         ra->m.tile_rotations[index] = */
+        /*             (ra->m.tile_rotations[index] + 1) % 4; */
+        /*     } */
+        /*     break; */
+        /* case V: */
+        /*     if (!ra->selected) { */
+        /*         size_t index = */
+        /*             (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
+         */
+        /*         ra->m.tile_attributes[index] ^= TILE_VERTICAL_FLIP; */
+        /*     } */
+        /*     break; */
+        /* case B: */
+        /*     if (!ra->selected) { */
+        /*         size_t index = */
+        /*             (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
+         */
+        /*         ra->m.tile_attributes[index] ^= TILE_HORIZONTAL_FLIP; */
+        /*     } */
+        /*     break; */
+        /* case D: */
+        /*     ra->debug = !ra->debug; */
+        /*     printf("\033[2J"); */
+        /*     break; */
+        /* case T: */
+        /*     if (ra->debug) { */
+        /*         ra->attribute_overlay = */
+        /*             (ra->attribute_overlay + 1) % TILE_NUM_ATTRIBUTES; */
+        /*     } */
+        /*     break; */
+        /* case W: { */
+        /*     size_t index = */
+        /*         (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x; */
+        /*     ra->m.tile_attributes[index] ^= TILE_WALL; */
+        /* } break; */
+        /* case ENTER: */
+        /*     if (!ra->selected) { */
+        /*         ra->selected = true; */
+        /*     } else { */
+        /*         // Tile select screen is up, we need to now replace the tile
+         * on */
+        /*         // the map with the currently selected tile */
+        /*         const int starting_tile_index = */
+        /*             ra->list_scroll_pos * tiles_per_row; */
+        /*         Vec2I tile = VEC2I( */
+        /*             starting_tile_index % (ra->t.dimensions_in_tiles.x), */
+        /*             (starting_tile_index / (ra->t.dimensions_in_tiles.x)));
+         */
+
+        /*         int tile_offset = */
+        /*             (ra->picker_pos.y * tiles_per_row) + ra->picker_pos.x; */
+        /*         tile = vec2i_add( */
+        /*             tile, VEC2I((tile_offset % ra->t.dimensions_in_tiles.x),
+         */
+        /*                         (tile_offset /
+         * ra->t.dimensions_in_tiles.x))); */
+
+        /*         ra->m.tiles[(ra->tile_pos.y * ra->m.dimensions.x) + */
+        /*                     ra->tile_pos.x] = tile; */
+        /*         Vec2I result = */
+        /*             ra->m.tiles[(ra->tile_pos.y * ra->m.dimensions.x) + */
+        /*                         ra->tile_pos.x]; */
+
+        /*         ra->selected = false; */
+        /*     } */
+        /*     break; */
+        /* case ESCAPE: */
+        /*     ra->selected = false; */
+        /*     break; */
+        /* case QUIT: */
+        /*     ra->done = true; */
+        /*     goto CLEANUP; */
+        /*     break; */
+        /* } */
 
         /*************/
         /* RENDERING */
         /*************/
-        ra->r.draw_map(ra->r.state, ra->m);
+        /* ra->r.draw_map(ra->r.state, ra->m); */
 
-        if (ra->attribute_overlay != TILE_NORMAL && ra->debug) {
-            // Draw a blue tint over all tiles with the currently selected
-            // attribute
-            for (size_t row = 0; row < ra->m.dimensions.y; row++) {
-                for (size_t col = 0; col < ra->m.dimensions.x; col++) {
-                    size_t index = (row * ra->m.dimensions.x) + col;
-                    if (ra->m.tile_attributes[index] &
-                        (1 << (ra->attribute_overlay - 1))) {
-                        Vec2I pos = VEC2I(col, row);
-                        ra->r.draw_rect_filled(
-                            ra->r.state,
-                            tile_coords(pos, ra->t.tile_dimensions.x, NW),
-                            tile_coords(pos, ra->t.tile_dimensions.x, SE),
-                            (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a = 0x45},
-                            (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a = 0x45});
-                    }
-                }
-            }
-        }
+        /* if (ra->attribute_overlay != TILE_NORMAL && ra->debug) { */
+        /*     // Draw a blue tint over all tiles with the currently selected */
+        /*     // attribute */
+        /*     for (size_t row = 0; row < ra->m.dimensions.y; row++) { */
+        /*         for (size_t col = 0; col < ra->m.dimensions.x; col++) { */
+        /*             size_t index = (row * ra->m.dimensions.x) + col; */
+        /*             if (ra->m.tile_attributes[index] & */
+        /*                 (1 << (ra->attribute_overlay - 1))) { */
+        /*                 Vec2I pos = VEC2I(col, row); */
+        /*                 ra->r.draw_rect_filled( */
+        /*                     ra->r.state, */
+        /*                     tile_coords(pos, ra->t.tile_dimensions.x, NW), */
+        /*                     tile_coords(pos, ra->t.tile_dimensions.x, SE), */
+        /*                     (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a =
+         * 0x45}, */
+        /*                     (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a =
+         * 0x45}); */
+        /*             } */
+        /*         } */
+        /*     } */
+        /* } */
 
-        // Draw red outline
-        ra->r.draw_rect(ra->r.state,
-                        tile_coords(ra->tile_pos, ra->t.tile_dimensions.x, NW),
-                        tile_coords(ra->tile_pos, ra->t.tile_dimensions.x, SE),
-                        (RGBA){.r = 0xFF, .a = ra->selected ? 0xEF : 0x95});
+        /* // Draw red outline */
+        /* ra->r.draw_rect(ra->r.state, */
+        /*                 tile_coords(ra->tile_pos, ra->t.tile_dimensions.x,
+         * NW), */
+        /*                 tile_coords(ra->tile_pos, ra->t.tile_dimensions.x,
+         * SE), */
+        /*                 (RGBA){.r = 0xFF, .a = ra->selected ? 0xEF : 0x95});
+         */
 
-        // If selected we want to pop up the tile picker
-        if (ra->selected) {
-            ra->r.draw_rect_filled(
-                ra->r.state,
-                tile_coords(VEC2I(2, 2), ra->t.tile_dimensions.x, NW),
-                tile_coords(VEC2I(27, 17), ra->t.tile_dimensions.x, SE), WHITE,
-                (RGBA){.r = 0xAF, .g = 0xAF, .b = 0xAF, .a = 0xAF});
+        /* // If selected we want to pop up the tile picker */
+        /* if (ra->selected) { */
+        /*     ra->r.draw_rect_filled( */
+        /*         ra->r.state, */
+        /*         tile_coords(VEC2I(2, 2), ra->t.tile_dimensions.x, NW), */
+        /*         tile_coords(VEC2I(27, 17), ra->t.tile_dimensions.x, SE),
+         * WHITE, */
+        /*         (RGBA){.r = 0xAF, .g = 0xAF, .b = 0xAF, .a = 0xAF}); */
 
-            // First check if they attempted to scroll past the end
-            if (ra->list_scroll_pos >=
-                rows_of_tiles - (num_rendered_rows - 1)) {
-                ra->list_scroll_pos = rows_of_tiles - (num_rendered_rows - 1);
-            }
+        /*     // First check if they attempted to scroll past the end */
+        /*     if (ra->list_scroll_pos >= */
+        /*         rows_of_tiles - (num_rendered_rows - 1)) { */
+        /*         ra->list_scroll_pos = rows_of_tiles - (num_rendered_rows -
+         * 1); */
+        /*     } */
 
-            // When the user does scroll down the last row of tiles may be
-            // incomplete, check this and move the the last tile if so
-            if (ra->list_scroll_pos ==
-                    rows_of_tiles - (num_rendered_rows - 1) &&
-                ra->picker_pos.y == num_rendered_rows - 1) {
-                // Check how many tiles are being rendered in the last row
-                const int last_row_tiles = ra->t.num_tiles % tiles_per_row;
+        /*     // When the user does scroll down the last row of tiles may be */
+        /*     // incomplete, check this and move the the last tile if so */
+        /*     if (ra->list_scroll_pos == */
+        /*             rows_of_tiles - (num_rendered_rows - 1) && */
+        /*         ra->picker_pos.y == num_rendered_rows - 1) { */
+        /*         // Check how many tiles are being rendered in the last row */
+        /*         const int last_row_tiles = ra->t.num_tiles % tiles_per_row;
+         */
 
-                if (ra->picker_pos.x >= last_row_tiles) {
-                    ra->picker_pos.x = last_row_tiles - 1;
-                }
-            }
+        /*         if (ra->picker_pos.x >= last_row_tiles) { */
+        /*             ra->picker_pos.x = last_row_tiles - 1; */
+        /*         } */
+        /*     } */
 
-            // Now draw all of the tiles that will fit
-            int starting_tile_index = ra->list_scroll_pos * tiles_per_row;
-            Vec2I tile =
-                VEC2I(starting_tile_index % (ra->t.dimensions_in_tiles.x),
-                      (starting_tile_index / (ra->t.dimensions_in_tiles.x)));
+        /*     // Now draw all of the tiles that will fit */
+        /*     int starting_tile_index = ra->list_scroll_pos * tiles_per_row; */
+        /*     Vec2I tile = */
+        /*         VEC2I(starting_tile_index % (ra->t.dimensions_in_tiles.x), */
+        /*               (starting_tile_index / (ra->t.dimensions_in_tiles.x)));
+         */
 
-            for (size_t row = 3; row < 17; row += 2) {
-                for (size_t col = 3; col < 27; col += 2) {
-                    // Don't draw past the end of the tilemap
-                    if ((tile.y *
-                         (ra->t.dimensions.x / ra->t.tile_dimensions.x)) +
-                            tile.x >=
-                        ra->t.num_tiles) {
-                        break;
-                    }
+        /*     for (size_t row = 3; row < 17; row += 2) { */
+        /*         for (size_t col = 3; col < 27; col += 2) { */
+        /*             // Don't draw past the end of the tilemap */
+        /*             if ((tile.y * */
+        /*                  (ra->t.dimensions.x / ra->t.tile_dimensions.x)) + */
+        /*                     tile.x >= */
+        /*                 ra->t.num_tiles) { */
+        /*                 break; */
+        /*             } */
 
-                    ra->r.draw_tile(ra->r.state, VEC2I(col, row), VEC2I(4, 4),
-                                    ra->t, tile, 0, 0);
+        /*             ra->r.draw_tile(ra->r.state, VEC2I(col, row), VEC2I(4,
+         * 4), */
+        /*                             ra->t, tile, 0, 0); */
 
-                    tile.x++;
-                    if (tile.x ==
-                        ra->t.dimensions.x / ra->t.tile_dimensions.x) {
-                        tile.x = 0;
-                        tile.y++;
-                    }
-                }
-            }
+        /*             tile.x++; */
+        /*             if (tile.x == */
+        /*                 ra->t.dimensions.x / ra->t.tile_dimensions.x) { */
+        /*                 tile.x = 0; */
+        /*                 tile.y++; */
+        /*             } */
+        /*         } */
+        /*     } */
 
-            // Draw tile picker
-            Vec2I picker_draw_nw =
-                vec2i_add(tile_coords(vec2i_add(vec2i_mul(ra->picker_pos, 2),
-                                                VEC2I(3, 3)),
-                                      ra->t.tile_dimensions.x, NW),
-                          3);
-            Vec2I picker_draw_se =
-                vec2i_add(tile_coords(vec2i_add(vec2i_mul(ra->picker_pos, 2),
-                                                VEC2I(3, 3)),
-                                      ra->t.tile_dimensions.x, SE),
-                          5);
-            ra->r.draw_rect(ra->r.state, picker_draw_nw, picker_draw_se,
-                            (RGBA){.r = 0xFF, .g = 0xFF, .b = 0x00, .a = 0x95});
-        }
+        /*     // Draw tile picker */
+        /*     Vec2I picker_draw_nw = */
+        /*         vec2i_add(tile_coords(vec2i_add(vec2i_mul(ra->picker_pos, 2),
+         */
+        /*                                         VEC2I(3, 3)), */
+        /*                               ra->t.tile_dimensions.x, NW), */
+        /*                   3); */
+        /*     Vec2I picker_draw_se = */
+        /*         vec2i_add(tile_coords(vec2i_add(vec2i_mul(ra->picker_pos, 2),
+         */
+        /*                                         VEC2I(3, 3)), */
+        /*                               ra->t.tile_dimensions.x, SE), */
+        /*                   5); */
+        /*     ra->r.draw_rect(ra->r.state, picker_draw_nw, picker_draw_se, */
+        /*                     (RGBA){.r = 0xFF, .g = 0xFF, .b = 0x00, .a =
+         * 0x95}); */
+        /* } */
 
         printf("\033[H");
         fflush(stdout);
@@ -431,8 +501,8 @@ int main(int argc, char* argv[]) {
         .done = false,
     };
 
-    thrd_t thread;
-    thrd_create(&thread, render_thread, &ra);
+    pthread_t thread;
+    pthread_create(&thread, NULL, render_thread, &ra);
 
     enableRawMode();
 
@@ -502,6 +572,7 @@ int main(int argc, char* argv[]) {
             break;
         case 'd':
             e.event_type = D;
+            ra.debug = !ra.debug;
             break;
         case 't':
             e.event_type = T;
@@ -517,7 +588,11 @@ int main(int argc, char* argv[]) {
             break;
         }
 
-        result = lockable_queue_Event_add(&ra.events, e);
+        result = lockable_queue_Event_tryadd(&ra.events, e);
+
+        if (c == 'q') {
+            goto CLEANUP;
+        }
 
     SLEEP:;
         struct timespec frame_end = {0};
@@ -533,7 +608,7 @@ int main(int argc, char* argv[]) {
     }
 
 CLEANUP:
-    thrd_join(thread, NULL);
+    pthread_join(thread, NULL);
     printf("\n");
     r.cleanup(r.state);
     tilemap_deinit(t);

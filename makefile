@@ -30,14 +30,14 @@ bin/sprites: examples/sprites.c obj/timespec obj/sx obj/tile obj/vec obj/color o
 bin/map: examples/map.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events obj/map
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/map_editor: examples/map_editor.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events obj/map
-	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
+bin/map_editor: examples/map_editor.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events obj/map obj/map_layer obj/tile_selection_list
+	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng -lpthread
 
 obj/timespec: src/timespec.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
 obj/sx: src/sx.c
-	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude -lsixel
+	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude -lsixel -lpthread
 
 obj/tile: src/tile.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
@@ -55,6 +55,12 @@ obj/events: src/events.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
 obj/map: src/map.c
+	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
+
+obj/map_layer: src/map_layer.c
+	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
+
+obj/tile_selection_list: src/tile_selection_list.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
 clean:

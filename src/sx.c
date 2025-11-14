@@ -5,6 +5,7 @@
 #include "vec.h"
 #include <assert.h>
 #include <math.h>
+#include <pthread.h>
 #include <sixel.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -29,7 +30,7 @@ typedef struct SixelState {
     size_t width;
     size_t scale;
 
-    mtx_t upscale_lock;
+    pthread_mutex_t* upscale_lock;
 } SixelState;
 
 static void set_pixel(SixelState* s, size_t x, size_t y) {
@@ -339,7 +340,7 @@ void draw_pixel(void* state, Vec2I p, RGBA color) {
 void render(void* state) {
     SixelState* s = (SixelState*)state;
 
-    mtx_lock(&s->upscale_lock);
+    pthread_mutex_lock(s->upscale_lock);
     for (size_t row = 0; row < s->height * s->scale; row++) {
         for (size_t col = 0; col < s->width * s->scale; col++) {
             s->upscale[(row * s->width * s->scale) + col] =
@@ -355,7 +356,7 @@ void render(void* state) {
     }
 
     memset(s->pixels, 0, s->width * s->height * sizeof(*s->pixels));
-    mtx_unlock(&s->upscale_lock);
+    pthread_mutex_unlock(s->upscale_lock);
 }
 
 void update_scale(void* state, size_t scale) {
@@ -365,7 +366,7 @@ void update_scale(void* state, size_t scale) {
         return;
     }
 
-    mtx_lock(&s->upscale_lock);
+    pthread_mutex_lock(s->upscale_lock);
     s->upscale = realloc(s->upscale, s->width * s->height * sizeof(*s->pixels) *
                                          scale * scale);
     if (!s->upscale) {
@@ -374,13 +375,14 @@ void update_scale(void* state, size_t scale) {
     }
     s->scale = scale;
     printf("\033[H\033[0J");
-    mtx_unlock(&s->upscale_lock);
+    pthread_mutex_unlock(s->upscale_lock);
 }
 
 void cleanup(void* state) {
     SixelState* s = (SixelState*)state;
 
-    mtx_destroy(&s->upscale_lock);
+    pthread_mutex_destroy(s->upscale_lock);
+    free(s->upscale_lock);
 
     sixel_output_destroy(s->context);
     sixel_dither_unref(s->dither);
@@ -401,7 +403,8 @@ Renderer sx_init(size_t width, size_t height, size_t scale) {
     s->pixels = (RGB*)calloc(1, width * height * sizeof(*s->pixels));
     s->upscale =
         (RGB*)calloc(1, width * height * sizeof(*s->pixels) * scale * scale);
-    mtx_init(&s->upscale_lock, mtx_plain);
+    s->upscale_lock = calloc(1, sizeof(*s->upscale_lock));
+    pthread_mutex_init(s->upscale_lock, NULL);
 
     int status = sixel_output_new(&s->context, sixel_write, stdout, NULL);
     if (SIXEL_FAILED(status)) {

@@ -1,9 +1,9 @@
 #pragma once
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <threads.h>
 
 typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
 
@@ -13,7 +13,7 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
         size_t size;                                                           \
         size_t capacity;                                                       \
         size_t at;                                                             \
-        mtx_t lock;                                                            \
+        pthread_mutex_t* lock;                                                 \
     } LockableQueue_##T;                                                       \
     typedef struct LockableQueue_##T##_Result {                                \
         T item;                                                                \
@@ -39,16 +39,15 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
             (LockableQueue_##T){.items = calloc(sizeof(T) * capacity, 1),      \
                                 .size = 0,                                     \
                                 .capacity = capacity,                          \
-                                .at = 0};                                      \
-        int result = mtx_init(&lq.lock, mtx_plain);                            \
-        if (result != thrd_success) {                                          \
-            perror("mtx_init");                                                \
-            exit(1);                                                           \
-        }                                                                      \
+                                .at = 0,                                       \
+                                .lock = calloc(1, sizeof(*lq.lock))};          \
+        int result = pthread_mutex_init(lq.lock, NULL);                        \
                                                                                \
         return lq;                                                             \
     }                                                                          \
     void lockable_queue_##T##_deinit(LockableQueue_##T q) {                    \
+        pthread_mutex_destroy(q.lock);                                         \
+        free(q.lock);                                                          \
         if (q.items) {                                                         \
             free(q.items);                                                     \
         }                                                                      \
@@ -56,22 +55,22 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
     [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_add(         \
         LockableQueue_##T* q, T item) {                                        \
         LockableQueue_##T##_Result result = {0};                               \
-        mtx_lock(&q->lock);                                                    \
+        pthread_mutex_lock(q->lock);                                           \
         if (q->size != q->capacity) {                                          \
             q->items[(q->at + q->size++) % q->capacity] = item;                \
             result.status = SUCCESS;                                           \
         } else {                                                               \
             result.status = FULL;                                              \
         }                                                                      \
-        mtx_unlock(&q->lock);                                                  \
+        pthread_mutex_unlock(q->lock);                                         \
                                                                                \
         return result;                                                         \
     }                                                                          \
     [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_tryadd(      \
         LockableQueue_##T* q, T item) {                                        \
         LockableQueue_##T##_Result result = {0};                               \
-        int mtx_result = mtx_trylock(&q->lock);                                \
-        if (mtx_result != thrd_success) {                                      \
+        int mtx_result = pthread_mutex_trylock(q->lock);                       \
+        if (mtx_result != 0) {                                                 \
             result.status = BLOCKED;                                           \
             return result;                                                     \
         }                                                                      \
@@ -83,13 +82,13 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
             result.status = FULL;                                              \
         }                                                                      \
                                                                                \
-        mtx_unlock(&q->lock);                                                  \
+        pthread_mutex_unlock(q->lock);                                         \
         return result;                                                         \
     }                                                                          \
     [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_get(         \
         LockableQueue_##T* q) {                                                \
         LockableQueue_##T##_Result result = {0};                               \
-        mtx_lock(&q->lock);                                                    \
+        pthread_mutex_lock(q->lock);                                           \
                                                                                \
         if (q->size != 0) {                                                    \
             result.item = q->items[q->at];                                     \
@@ -100,14 +99,14 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
             result.status = EMPTY;                                             \
         }                                                                      \
                                                                                \
-        mtx_unlock(&q->lock);                                                  \
+        pthread_mutex_unlock(q->lock);                                         \
         return result;                                                         \
     }                                                                          \
     [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_tryget(      \
         LockableQueue_##T* q) {                                                \
         LockableQueue_##T##_Result result = {0};                               \
-        int mtx_result = mtx_trylock(&q->lock);                                \
-        if (mtx_result != thrd_success) {                                      \
+        int mtx_result = pthread_mutex_trylock(q->lock);                       \
+        if (mtx_result != 0) {                                                 \
             result.status = BLOCKED;                                           \
             return result;                                                     \
         }                                                                      \
@@ -122,6 +121,6 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
             result.status = EMPTY;                                             \
         }                                                                      \
                                                                                \
-        mtx_unlock(&q->lock);                                                  \
+        pthread_mutex_unlock(q->lock);                                         \
         return result;                                                         \
     }

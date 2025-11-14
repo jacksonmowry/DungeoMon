@@ -1,3 +1,4 @@
+#include "tile_selection_list.h"
 #include "layer.h"
 #include "map.h"
 #include "renderer.h"
@@ -19,7 +20,7 @@ typedef struct TileListState {
     size_t num_rendered_rows;
 } TileListState;
 
-LayerEventResponse handle_input(void* state, Event e) {
+static LayerEventResponse handle_input(void* state, Event e) {
     TileListState* s = (TileListState*)state;
     LayerEventResponse response = {0};
 
@@ -33,6 +34,7 @@ LayerEventResponse handle_input(void* state, Event e) {
             // We're at the bottom of the screen, scroll down
             s->list_scroll_pos -= 1;
         }
+        response.status = HANLDED;
     } break;
     case DOWN: {
         if (s->cursor_pos.y != 6) {
@@ -42,14 +44,17 @@ LayerEventResponse handle_input(void* state, Event e) {
             // We're at the bottom of the screen, scroll down
             s->list_scroll_pos += 1;
         }
+        response.status = HANLDED;
     } break;
     case LEFT: {
         s->cursor_pos.x =
             s->cursor_pos.x != 0 ? s->cursor_pos.x - 1 : s->cursor_pos.x;
+        response.status = HANLDED;
     } break;
     case RIGHT: {
         s->cursor_pos.x =
             s->cursor_pos.x != 11 ? s->cursor_pos.x + 1 : s->cursor_pos.x;
+        response.status = HANLDED;
     } break;
     case ENTER: {
         // Tile select screen is up, we need to now replace the tile on
@@ -77,7 +82,7 @@ LayerEventResponse handle_input(void* state, Event e) {
     } break;
     case QUIT: {
         // Any cleanup code for the layer goes here
-        response.status = IGNORED;
+        response.status = POP;
     } break;
     default: {
         response.status = IGNORED;
@@ -87,7 +92,7 @@ LayerEventResponse handle_input(void* state, Event e) {
     return response;
 }
 
-void render(void* state) {
+static void render(void* state) {
     TileListState* s = (TileListState*)state;
 
     s->r->draw_rect_filled(
