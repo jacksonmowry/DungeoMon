@@ -9,3 +9,6 @@ bin/*
 
 obj/*
 !obj/.keep
+
+lib/*
+!lib/.keep

@@ -1,15 +1,10 @@
-#include "color.h"
 #include "events.h"
 #include "layer.h"
-#include "map.h"
-#include "map_layer.h"
 #include "queue.h"
 #include "renderer.h"
 #include "scrolling_text_layer.h"
 #include "sx.h"
-#include "tile.h"
 #include "timespec.h"
-#include "vec.h"
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -56,39 +51,23 @@ void enableRawMode() {
 
 typedef struct RenderArgs {
     Renderer r;
-    Map m;
-    Tilemap t;
-
-    Vec2I tile_pos;
-    Vec2I picker_pos;
-    bool selected;
-    int list_scroll_pos;
 
     EventQueue events;
     bool done;
-
-    bool debug;
-    int attribute_overlay;
 } RenderArgs;
 
 void* render_thread(void* arg) {
     RenderArgs* ra = (RenderArgs*)arg;
-    /* const size_t tiles_per_row = ((27 - 3) / 2); */
-    /* const int rows_of_tiles = ra->t.num_tiles / tiles_per_row; */
-    /* const int num_rendered_rows = (17 - 3) / 2; */
 
     Layer* layer_stack[3];
     int layers = 0;
-    Layer map_layer = map_layer_init(&ra->r, &ra->m);
-    layer_stack[0] = &map_layer;
+    Layer text_box =
+        scrolling_text_layer_init(&ra->r,
+                                  "You encountered a goblin! How does it "
+                                  "handle a bit longer of a phrase?",
+                                  true);
+    layer_stack[0] = &text_box;
     layers = 1;
-    /* Layer text_box = */
-    /*     scrolling_text_layer_init(&ra->r, */
-    /*                               "You encountered a goblin! How does it " */
-    /*                               "handle a bit longer of a phrase?", */
-    /*                               true); */
-    /* layer_stack[1] = &text_box; */
-    /* layers = 2; */
 
 #ifdef DEBUG
     Layer* debug_layer_stack[3];
@@ -209,18 +188,6 @@ void* render_thread(void* arg) {
         fflush(stdout);
         ra->r.render(ra->r.state);
         printf("\n");
-        printf("+---------------------------------------+\r\n");
-        printf("|'q'      | to quit                     |\r\n");
-        printf("|'hjkl'   | to move left down up right  |\r\n");
-        printf("|'r'      | to rotate tile clockwise    |\r\n");
-        printf("|'v'      | to flip tile vertically     |\r\n");
-        printf("|'r'      | to flip tile horizontally   |\r\n");
-        printf("|'Enter'  | to change a tile            |\r\n");
-        printf("|'Escape' | to unselect a tile          |\r\n");
-#ifdef DEBUG
-        printf("|'d'      | to enable debug view        |\r\n");
-#endif
-        printf("+---------------------------------------+\r\n");
         printf("FPS %.2f\r\n", framerate);
 
     SLEEP:;
@@ -249,20 +216,12 @@ CLEANUP:
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 7) {
-        fprintf(stderr,
-                "usage: %s sprite_sheet.png sprite_sheet_names.txt tile_width "
-                "tile_height "
-                "horizontal_gap vertical_gap\n",
-                argv[0]);
+    if (argc != 1) {
+        fprintf(stderr, "usage: %s\n", argv[0]);
         return 1;
     }
 
     srand(time(NULL));
-
-    Vec2I tile_dims = VEC2I(atoi(argv[3]), atoi(argv[4]));
-    Vec2I tile_gaps = VEC2I(atoi(argv[5]), atoi(argv[6]));
-    Tilemap t = tilemap_load(argv[1], argv[2], tile_dims, tile_gaps);
 
     const size_t width = 240;
     const size_t height = 160;
@@ -278,13 +237,6 @@ int main(int argc, char* argv[]) {
 
     RenderArgs ra = {
         .r = r,
-        .t = t,
-        .m = map_load("maps/test.map", t),
-
-        .tile_pos = {0},
-        .picker_pos = {0},
-        .selected = false,
-        .list_scroll_pos = 0,
 
         .events = lockable_queue_Event_init(1),
         .done = false,
@@ -399,7 +351,5 @@ CLEANUP:
     pthread_join(thread, NULL);
     printf("\n");
     r.cleanup(r.state);
-    tilemap_deinit(t);
     lockable_queue_Event_deinit(ra.events);
-    map_deinit(ra.m);
 }

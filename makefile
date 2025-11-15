@@ -12,25 +12,32 @@ examples: bin/font_rendering \
 		bin/character_control \
 		bin/sprites \
 		bin/map \
-		bin/map_editor
+		bin/map_editor \
+		bin/text_box
 
-bin/font_rendering: examples/font_rendering.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o
-	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
+bin/font_rendering: examples/font_rendering.c lib/libgraphics.a
+	$(CC) $(CFLAGS) $^ -o $@ -Llib -lgraphics -lm -Iinclude -lsixel -lpng
 
-bin/animation: examples/animation.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o
-	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
+bin/animation: examples/animation.c lib/libgraphics.a
+	$(CC) $(CFLAGS) $^ -o $@ -Llib -lgraphics -lm -Iinclude -lsixel -lpng
 
-bin/character_control: examples/character_control.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o
-	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
+bin/character_control: examples/character_control.c lib/libgraphics.a
+	$(CC) $(CFLAGS) $^ -o $@ -Llib -lgraphics -lm -Iinclude -lsixel -lpng
 
-bin/sprites: examples/sprites.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o
-	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
+bin/sprites: examples/sprites.c lib/libgraphics.a
+	$(CC) $(CFLAGS) $^ -o $@ -Llib -lgraphics -lm -Iinclude -lsixel -lpng
 
-bin/map: examples/map.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o
-	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
+bin/map: examples/map.c lib/libgraphics.a
+	$(CC) $(CFLAGS) $^ -o $@ -Llib -lgraphics -lm -Iinclude -lsixel -lpng
 
-bin/map_editor: examples/map_editor.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o obj/map_layer.o obj/tile_selection_list.o obj/debug_layer.o obj/scrolling_text_layer.o
-	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng -lpthread
+bin/map_editor: examples/map_editor.c lib/libgraphics.a
+	$(CC) $(CFLAGS) $^ -o $@ -Llib -lgraphics -lm -Iinclude -lsixel -lpng -lpthread
+
+bin/text_box: examples/text_box.c lib/libgraphics.a
+	$(CC) $(CFLAGS) $^ -o $@ -Llib -lgraphics -lm -Iinclude -lsixel -lpng -lpthread
+
+lib/libgraphics.a: obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o obj/map_layer.o obj/tile_selection_list.o obj/debug_layer.o obj/scrolling_text_layer.o
+	ar rs lib/libgraphics.a obj/*
 
 obj/timespec.o: src/timespec.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude

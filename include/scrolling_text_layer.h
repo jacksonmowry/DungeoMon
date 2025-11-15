@@ -3,4 +3,4 @@
 #include "layer.h"
 #include "renderer.h"
 
-Layer scrolling_text_layer_init(Renderer* r, const char* message);
+Layer scrolling_text_layer_init(Renderer* r, const char* message, bool top);

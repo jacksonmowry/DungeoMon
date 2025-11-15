@@ -1,13 +1,20 @@
 #include "scrolling_text_layer.h"
 #include "layer.h"
+#include "tile.h"
 #include <assert.h>
 #include <ctype.h>
 #include <string.h>
 
+#define MESSAGE_LINE_LENGTH 25
+
 typedef struct ScrollingTextLayerState {
-    char message_lines[32][19];
+    Renderer* r;
+
+    char message_lines[32][MESSAGE_LINE_LENGTH + 1];
     size_t num_lines;
     size_t current_line;
+
+    bool top;
 } ScrollingTextLayerState;
 
 static LayerEventResponse handle_input(void* state, Event e) {
@@ -18,7 +25,15 @@ static LayerEventResponse handle_input(void* state, Event e) {
     switch (e.event_type) {
     case ENTER:
         // Scrolling logic here, HANLDED if we have text left, POP if done
-        response.status = HANDLED;
+        if (s->current_line != s->num_lines - 2) {
+            // We still have room to scroll
+            s->current_line++;
+            response.status = HANDLED;
+        } else {
+            // We're done, pop ourselves
+            response.status = POP;
+        }
+        break;
     default:
         response.status = IGNORED;
     }
@@ -28,22 +43,54 @@ static LayerEventResponse handle_input(void* state, Event e) {
 
 static void render(void* state) {
     ScrollingTextLayerState* s = (ScrollingTextLayerState*)state;
+
+    if (s->top) {
+        s->r->draw_rect_filled(s->r->state, tile_coords(VEC2I(1, 2), 8, NW),
+                               tile_coords(VEC2I(28, 5), 8, SE), WHITE, BLACK);
+
+        s->r->draw_text(s->r->state, s->message_lines[s->current_line],
+                        tile_coords(VEC2I(2, 3), 8, NW), WHITE, 1);
+        s->r->draw_text(s->r->state, s->message_lines[s->current_line + 1],
+                        tile_coords(VEC2I(2, 4), 8, NW), WHITE, 1);
+
+        // Do we still have more lines to show? If yes show scroll indicator
+        if (s->current_line != s->num_lines - 2) {
+            s->r->draw_text(s->r->state, "!", tile_coords(VEC2I(27, 4), 8, NW),
+                            WHITE, 1);
+        }
+    } else {
+        s->r->draw_rect_filled(s->r->state, tile_coords(VEC2I(1, 14), 8, NW),
+                               tile_coords(VEC2I(28, 17), 8, SE), WHITE, BLACK);
+
+        s->r->draw_text(s->r->state, s->message_lines[s->current_line],
+                        tile_coords(VEC2I(2, 15), 8, NW), WHITE, 1);
+        s->r->draw_text(s->r->state, s->message_lines[s->current_line + 1],
+                        tile_coords(VEC2I(2, 16), 8, NW), WHITE, 1);
+
+        // Do we still have more lines to show? If yes show scroll indicator
+        if (s->current_line != s->num_lines - 2) {
+            s->r->draw_text(s->r->state, "!", tile_coords(VEC2I(27, 16), 8, NW),
+                            WHITE, 1);
+        }
+    }
+
     return;
 }
 
 static void deinit(void* state) {
     ScrollingTextLayerState* s = (ScrollingTextLayerState*)state;
 
-    for (size_t i = 0; i < 64; i++) {
-        free(s->message_lines[i]);
-    }
+    free(s);
 }
 
-Layer scrolling_text_layer_init(Renderer* r, const char* message) {
+Layer scrolling_text_layer_init(Renderer* r, const char* message, bool top) {
     ScrollingTextLayerState* s = calloc(1, sizeof(*s));
 
+    s->top = top;
+    s->r = r;
+
     // Custom line break algorithm, we can have a max of 18 characters per line
-    char word_buf[18] = {0};
+    char word_buf[MESSAGE_LINE_LENGTH] = {0};
     size_t word_len = 0;
     const size_t message_len = strlen(message);
     size_t line_len = 0;
@@ -52,14 +99,16 @@ Layer scrolling_text_layer_init(Renderer* r, const char* message) {
         char c = i == message_len ? ' ' : message[i];
 
         if (isspace(c)) {
-            fprintf(stderr, "Space, word is \"%s\"\n", word_buf);
+            word_buf[word_len++] = ' ';
             // Word break, push current word onto line if it fits
-            assert(word_len <= 18);
-            if (line_len + word_len < 18) {
-                word_buf[word_len] = ' ';
+            assert(word_len <= MESSAGE_LINE_LENGTH);
+            if (line_len + word_len <= MESSAGE_LINE_LENGTH) {
                 strcat(s->message_lines[s->num_lines], word_buf);
                 line_len += word_len;
 
+                assert(line_len <= MESSAGE_LINE_LENGTH);
+                assert(strlen(s->message_lines[s->num_lines]) <=
+                       MESSAGE_LINE_LENGTH);
             } else {
                 // We need a new line
                 line_len = 0;
@@ -71,20 +120,12 @@ Layer scrolling_text_layer_init(Renderer* r, const char* message) {
             memset(word_buf, 0, sizeof(word_buf));
             word_len = 0;
         } else {
-            fprintf(stderr, "Plain char: '%c'\n", c);
             word_buf[word_len++] = c;
         }
     }
 
     // One extra line
     s->num_lines++;
-
-    fprintf(stderr, "Message: \"%s\", translates into %zu lines: \n", message,
-            s->num_lines);
-
-    for (size_t i = 0; i < s->num_lines; i++) {
-        fprintf(stderr, "%s\n", s->message_lines[i]);
-    }
 
     return (Layer){
         .state = s,
