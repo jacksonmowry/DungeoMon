@@ -127,15 +127,15 @@ void draw_tile(void* state, Vec2I dest_tile, Vec2I tile_shift, Tilemap t,
             if (flip & TILE_VERTICAL_FLIP) {
                 draw_location.y = t.tile_dimensions.y - 1 - draw_location.y;
             }
-            if (dest_tile.x == 2 && dest_tile.y == 2) {
-                double w = 1 + 0.1 * draw_location.x;
-                draw_location.x /= w;
-                draw_location.y /= w;
-            }
+            /* if (dest_tile.x == 2 && dest_tile.y == 2) { */
+            /*     double w = 1 + 0.1 * draw_location.x; */
+            /*     draw_location.x /= w; */
+            /*     draw_location.y /= w; */
+            /* } */
 
-            if (dest_tile.x == 4 && dest_tile.y == 2) {
-                draw_location.x += (int)(-0.5 * draw_location.y);
-            }
+            /* if (dest_tile.x == 4 && dest_tile.y == 2) { */
+            /*     draw_location.x += (int)(-0.5 * draw_location.y); */
+            /* } */
 
             set_pixel_color(s, canvas_nw.x + draw_location.x + tile_shift.x,
                             canvas_nw.y + draw_location.y + tile_shift.y,

@@ -1,11 +1,9 @@
-#include "color.h"
 #include "events.h"
 #include "layer.h"
 #include "map.h"
 #include "map_layer.h"
 #include "queue.h"
 #include "renderer.h"
-#include "scrolling_text_layer.h"
 #include "sx.h"
 #include "tile.h"
 #include "timespec.h"
@@ -73,22 +71,12 @@ typedef struct RenderArgs {
 
 void* render_thread(void* arg) {
     RenderArgs* ra = (RenderArgs*)arg;
-    /* const size_t tiles_per_row = ((27 - 3) / 2); */
-    /* const int rows_of_tiles = ra->t.num_tiles / tiles_per_row; */
-    /* const int num_rendered_rows = (17 - 3) / 2; */
 
     Layer* layer_stack[3];
     int layers = 0;
     Layer map_layer = map_layer_init(&ra->r, &ra->m);
     layer_stack[0] = &map_layer;
     layers = 1;
-    /* Layer text_box = */
-    /*     scrolling_text_layer_init(&ra->r, */
-    /*                               "You encountered a goblin! How does it " */
-    /*                               "handle a bit longer of a phrase?", */
-    /*                               true); */
-    /* layer_stack[1] = &text_box; */
-    /* layers = 2; */
 
 #ifdef DEBUG
     Layer* debug_layer_stack[3];
