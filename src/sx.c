@@ -127,6 +127,15 @@ void draw_tile(void* state, Vec2I dest_tile, Vec2I tile_shift, Tilemap t,
             if (flip & TILE_VERTICAL_FLIP) {
                 draw_location.y = t.tile_dimensions.y - 1 - draw_location.y;
             }
+            if (dest_tile.x == 2 && dest_tile.y == 2) {
+                double w = 1 + 0.1 * draw_location.x;
+                draw_location.x /= w;
+                draw_location.y /= w;
+            }
+
+            if (dest_tile.x == 4 && dest_tile.y == 2) {
+                draw_location.x += (int)(-0.5 * draw_location.y);
+            }
 
             set_pixel_color(s, canvas_nw.x + draw_location.x + tile_shift.x,
                             canvas_nw.y + draw_location.y + tile_shift.y,
@@ -151,7 +160,6 @@ void draw_map(void* state, Map m) {
 
 static int sixel_write(char* data, int size, void* priv) {
     FILE* f = (FILE*)priv;
-    /* return write(f->_fileno, data, size); */
     return fwrite(data, size, 1, f);
 }
 
@@ -337,7 +345,7 @@ void draw_pixel(void* state, Vec2I p, RGBA color) {
     set_pixel_color(s, p.x, p.y, color);
 }
 
-void render(void* state) {
+static void render(void* state) {
     SixelState* s = (SixelState*)state;
 
     pthread_mutex_lock(s->upscale_lock);

@@ -34,7 +34,7 @@ static LayerEventResponse handle_input(void* state, Event e) {
             // We're at the bottom of the screen, scroll down
             s->list_scroll_pos -= 1;
         }
-        response.status = HANLDED;
+        response.status = HANDLED;
     } break;
     case DOWN: {
         if (s->cursor_pos.y != 6) {
@@ -44,18 +44,18 @@ static LayerEventResponse handle_input(void* state, Event e) {
             // We're at the bottom of the screen, scroll down
             s->list_scroll_pos += 1;
         }
-        response.status = HANLDED;
+        response.status = HANDLED;
     } break;
-    case LEFT: {
+    case LEFT:
         s->cursor_pos.x =
             s->cursor_pos.x != 0 ? s->cursor_pos.x - 1 : s->cursor_pos.x;
-        response.status = HANLDED;
-    } break;
-    case RIGHT: {
+        response.status = HANDLED;
+        break;
+    case RIGHT:
         s->cursor_pos.x =
             s->cursor_pos.x != 11 ? s->cursor_pos.x + 1 : s->cursor_pos.x;
-        response.status = HANLDED;
-    } break;
+        response.status = HANDLED;
+        break;
     case ENTER: {
         // Tile select screen is up, we need to now replace the tile on
         // the map with the currently selected tile
@@ -77,16 +77,11 @@ static LayerEventResponse handle_input(void* state, Event e) {
 
         response.status = POP;
     } break;
-    case ESCAPE: {
+    case ESCAPE:
         response.status = POP;
-    } break;
-    case QUIT: {
-        // Any cleanup code for the layer goes here
-        response.status = POP;
-    } break;
-    default: {
+        break;
+    default:
         response.status = IGNORED;
-    }
     }
 
     return response;
@@ -157,6 +152,11 @@ static void render(void* state) {
     return;
 }
 
+static void deinit(void* state) {
+    TileListState* s = (TileListState*)state;
+    free(s);
+}
+
 Layer tile_selection_list_init(Renderer* r, Map* m, Vec2I* tile_pos) {
     TileListState* s = calloc(1, sizeof(*s));
 
@@ -173,5 +173,6 @@ Layer tile_selection_list_init(Renderer* r, Map* m, Vec2I* tile_pos) {
 
         .handle_input = handle_input,
         .render = render,
+        .deinit = deinit,
     };
 }

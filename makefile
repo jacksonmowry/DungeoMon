@@ -3,6 +3,7 @@
 #
 # @file
 # @version 0.1
+.SUFFIXES:
 
 all: examples
 
@@ -13,54 +14,58 @@ examples: bin/font_rendering \
 		bin/map \
 		bin/map_editor
 
-objs: obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler
-
-bin/font_rendering: examples/font_rendering.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events obj/map
+bin/font_rendering: examples/font_rendering.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/animation: examples/animation.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events obj/map
+bin/animation: examples/animation.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/character_control: examples/character_control.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events obj/map
+bin/character_control: examples/character_control.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/sprites: examples/sprites.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events obj/map
+bin/sprites: examples/sprites.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/map: examples/map.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events obj/map
+bin/map: examples/map.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng
 
-bin/map_editor: examples/map_editor.c obj/timespec obj/sx obj/tile obj/vec obj/color obj/png_handler obj/events obj/map obj/map_layer obj/tile_selection_list
+bin/map_editor: examples/map_editor.c obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o obj/map_layer.o obj/tile_selection_list.o obj/debug_layer.o obj/scrolling_text_layer.o
 	$(CC) $(CFLAGS) $^ -o $@ -lm -Iinclude -lsixel -lpng -lpthread
 
-obj/timespec: src/timespec.c
+obj/timespec.o: src/timespec.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
-obj/sx: src/sx.c
+obj/sx.o: src/sx.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude -lsixel -lpthread
 
-obj/tile: src/tile.c
+obj/tile.o: src/tile.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
-obj/vec: src/vec.c
+obj/vec.o: src/vec.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
-obj/color: src/color.c
+obj/color.o: src/color.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
-obj/png_handler: src/png_handler.c
+obj/png_handler.o: src/png_handler.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude -lpng
 
-obj/events: src/events.c
+obj/events.o: src/events.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
-obj/map: src/map.c
+obj/map.o: src/map.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
-obj/map_layer: src/map_layer.c
+obj/map_layer.o: src/map_layer.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
-obj/tile_selection_list: src/tile_selection_list.c
+obj/tile_selection_list.o: src/tile_selection_list.c
+	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
+
+obj/debug_layer.o: src/debug_layer.c
+	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
+
+obj/scrolling_text_layer.o: src/scrolling_text_layer.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
 clean:

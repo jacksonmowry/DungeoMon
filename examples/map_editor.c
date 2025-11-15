@@ -5,6 +5,7 @@
 #include "map_layer.h"
 #include "queue.h"
 #include "renderer.h"
+#include "scrolling_text_layer.h"
 #include "sx.h"
 #include "tile.h"
 #include "timespec.h"
@@ -78,9 +79,14 @@ void* render_thread(void* arg) {
 
     Layer* layer_stack[3];
     int layers = 0;
-    layer_stack[0] = malloc(sizeof(Layer));
-    *layer_stack[0] = map_layer_init(&ra->r, &ra->m);
-    layers++;
+    Layer map_layer = map_layer_init(&ra->r, &ra->m);
+    layer_stack[0] = &map_layer;
+    layers = 1;
+
+#ifdef DEBUG
+    Layer* debug_layer_stack[3];
+    int debug_layers = 0;
+#endif
 
     struct timespec frame_time = timespec_from_double(1 / (double)30);
 
@@ -89,6 +95,7 @@ void* render_thread(void* arg) {
         perror("clock_gettime");
         exit(1);
     }
+    frame_prev = timespec_sub(frame_prev, timespec_from_double(1 / 30.0));
 
     while (layers != 0) {
         struct timespec frame_start = {0};
@@ -97,6 +104,8 @@ void* render_thread(void* arg) {
             exit(1);
         }
         struct timespec next_frame = timespec_add(frame_start, frame_time);
+        double framerate =
+            1 / timespec_to_double(timespec_sub(frame_start, frame_prev));
 
         /******************/
         /* INPUT HANDLING */
@@ -109,6 +118,38 @@ void* render_thread(void* arg) {
             goto SLEEP;
         }
 
+        if (event.item.event_type == QUIT) {
+            // Force quit the game
+            goto CLEANUP;
+        }
+
+#ifdef DEBUG
+    DEBUG_INPUT_LOOP:
+        for (int i = debug_layers - 1; i >= 0; i--) {
+            LayerEventResponse response = debug_layer_stack[i]->handle_input(
+                debug_layer_stack[i]->state, event.item);
+
+            switch (response.status) {
+            case IGNORED:
+                continue;
+            case HANDLED:
+                goto RENDER_LOOP;
+            case POP:
+                assert(false); // Debug layers cannot pop regular layers
+                break;
+            case PUSH:
+                assert(false); // Debug layers cannot push regular layers
+                break;
+            case DEBUG_POP:
+                assert(false); // Not currently handled
+                break;
+            case DEBUG_PUSH:
+                assert(false); // Not currently handled
+                break;
+            }
+        }
+#endif
+
     INPUT_LOOP:
         for (int i = layers - 1; i >= 0; i--) {
             LayerEventResponse response =
@@ -117,22 +158,33 @@ void* render_thread(void* arg) {
             switch (response.status) {
             case IGNORED:
                 continue;
-            case HANLDED:
+            case HANDLED:
                 goto RENDER_LOOP;
             case POP:
                 event.item.event_type = POPPED;
-                if (i != 0) {
-                    layer_stack[i - 1]->handle_input(layer_stack[i - 1]->state,
-                                                     event.item);
-                } else {
+                if (i == 0) {
                     goto CLEANUP;
                 }
+
+                layer_stack[i]->deinit(layer_stack[i]->state);
                 layers--;
-                goto RENDER_LOOP;
+                break;
             case PUSH:
                 layer_stack[layers] = response.l;
                 layers++;
+                goto RENDER_LOOP;
+#ifdef DEBUG
+            case DEBUG_POP:
+                event.item.event_type = POPPED;
+
+                debug_layer_stack[i]->deinit(debug_layer_stack[i]->state);
+                debug_layers--;
                 break;
+            case DEBUG_PUSH:
+                debug_layer_stack[debug_layers] = response.l;
+                debug_layers++;
+                break;
+#endif
             }
         }
 
@@ -140,259 +192,11 @@ void* render_thread(void* arg) {
         for (int i = 0; i < layers; i++) {
             layer_stack[i]->render(layer_stack[i]->state);
         }
-
-        /* switch (event.item.event_type) { */
-        /* case NOP: */
-        /*     break; */
-        /* case UP: */
-        /*     if (ra->selected) { */
-        /*         // Tile selection list */
-        /*         if (ra->picker_pos.y != 0) { */
-        /*             // Move normally, we're not at the top */
-        /*             ra->picker_pos.y -= 1; */
-        /*         } else if (ra->picker_pos.y == 0 && ra->list_scroll_pos != 0)
-         * { */
-        /*             // We're at the bottom of the screen, scroll down */
-        /*             ra->list_scroll_pos -= 1; */
-        /*         } */
-        /*     } else { */
-        /*         ra->tile_pos.y = */
-        /*             ra->tile_pos.y != 0 ? ra->tile_pos.y - 1 :
-         * ra->tile_pos.y; */
-        /*     } */
-        /*     break; */
-        /* case DOWN: */
-        /*     if (ra->selected) { */
-        /*         if (ra->picker_pos.y != 6) { */
-        /*             // Move normally, we're not at the bottom */
-        /*             ra->picker_pos.y += 1; */
-        /*         } else if (ra->picker_pos.y == 6) { */
-        /*             // We're at the bottom of the screen, scroll down */
-        /*             ra->list_scroll_pos += 1; */
-        /*         } */
-        /*     } else { */
-        /*         ra->tile_pos.y = */
-        /*             ra->tile_pos.y != 19 ? ra->tile_pos.y + 1 :
-         * ra->tile_pos.y; */
-        /*     } */
-        /*     break; */
-        /* case LEFT: */
-        /*     if (ra->selected) { */
-        /*         ra->picker_pos.x = ra->picker_pos.x != 0 ? ra->picker_pos.x -
-         * 1 */
-        /*                                                  : ra->picker_pos.x;
-         */
-        /*     } else { */
-        /*         ra->tile_pos.x = */
-        /*             ra->tile_pos.x != 0 ? ra->tile_pos.x - 1 :
-         * ra->tile_pos.x; */
-        /*     } */
-        /*     break; */
-        /* case RIGHT: */
-        /*     if (ra->selected) { */
-        /*         ra->picker_pos.x = ra->picker_pos.x != 11 ? ra->picker_pos.x
-         * + 1 */
-        /*                                                   : ra->picker_pos.x;
-         */
-        /*     } else { */
-        /*         ra->tile_pos.x = */
-        /*             ra->tile_pos.x != 29 ? ra->tile_pos.x + 1 :
-         * ra->tile_pos.x; */
-        /*     } */
-        /*     break; */
-        /* case R: */
-        /*     if (!ra->selected) { */
-        /*         size_t index = */
-        /*             (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
-         */
-        /*         ra->m.tile_rotations[index] = */
-        /*             (ra->m.tile_rotations[index] + 1) % 4; */
-        /*     } */
-        /*     break; */
-        /* case V: */
-        /*     if (!ra->selected) { */
-        /*         size_t index = */
-        /*             (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
-         */
-        /*         ra->m.tile_attributes[index] ^= TILE_VERTICAL_FLIP; */
-        /*     } */
-        /*     break; */
-        /* case B: */
-        /*     if (!ra->selected) { */
-        /*         size_t index = */
-        /*             (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x;
-         */
-        /*         ra->m.tile_attributes[index] ^= TILE_HORIZONTAL_FLIP; */
-        /*     } */
-        /*     break; */
-        /* case D: */
-        /*     ra->debug = !ra->debug; */
-        /*     printf("\033[2J"); */
-        /*     break; */
-        /* case T: */
-        /*     if (ra->debug) { */
-        /*         ra->attribute_overlay = */
-        /*             (ra->attribute_overlay + 1) % TILE_NUM_ATTRIBUTES; */
-        /*     } */
-        /*     break; */
-        /* case W: { */
-        /*     size_t index = */
-        /*         (ra->tile_pos.y * ra->m.dimensions.x) + ra->tile_pos.x; */
-        /*     ra->m.tile_attributes[index] ^= TILE_WALL; */
-        /* } break; */
-        /* case ENTER: */
-        /*     if (!ra->selected) { */
-        /*         ra->selected = true; */
-        /*     } else { */
-        /*         // Tile select screen is up, we need to now replace the tile
-         * on */
-        /*         // the map with the currently selected tile */
-        /*         const int starting_tile_index = */
-        /*             ra->list_scroll_pos * tiles_per_row; */
-        /*         Vec2I tile = VEC2I( */
-        /*             starting_tile_index % (ra->t.dimensions_in_tiles.x), */
-        /*             (starting_tile_index / (ra->t.dimensions_in_tiles.x)));
-         */
-
-        /*         int tile_offset = */
-        /*             (ra->picker_pos.y * tiles_per_row) + ra->picker_pos.x; */
-        /*         tile = vec2i_add( */
-        /*             tile, VEC2I((tile_offset % ra->t.dimensions_in_tiles.x),
-         */
-        /*                         (tile_offset /
-         * ra->t.dimensions_in_tiles.x))); */
-
-        /*         ra->m.tiles[(ra->tile_pos.y * ra->m.dimensions.x) + */
-        /*                     ra->tile_pos.x] = tile; */
-        /*         Vec2I result = */
-        /*             ra->m.tiles[(ra->tile_pos.y * ra->m.dimensions.x) + */
-        /*                         ra->tile_pos.x]; */
-
-        /*         ra->selected = false; */
-        /*     } */
-        /*     break; */
-        /* case ESCAPE: */
-        /*     ra->selected = false; */
-        /*     break; */
-        /* case QUIT: */
-        /*     ra->done = true; */
-        /*     goto CLEANUP; */
-        /*     break; */
-        /* } */
-
-        /*************/
-        /* RENDERING */
-        /*************/
-        /* ra->r.draw_map(ra->r.state, ra->m); */
-
-        /* if (ra->attribute_overlay != TILE_NORMAL && ra->debug) { */
-        /*     // Draw a blue tint over all tiles with the currently selected */
-        /*     // attribute */
-        /*     for (size_t row = 0; row < ra->m.dimensions.y; row++) { */
-        /*         for (size_t col = 0; col < ra->m.dimensions.x; col++) { */
-        /*             size_t index = (row * ra->m.dimensions.x) + col; */
-        /*             if (ra->m.tile_attributes[index] & */
-        /*                 (1 << (ra->attribute_overlay - 1))) { */
-        /*                 Vec2I pos = VEC2I(col, row); */
-        /*                 ra->r.draw_rect_filled( */
-        /*                     ra->r.state, */
-        /*                     tile_coords(pos, ra->t.tile_dimensions.x, NW), */
-        /*                     tile_coords(pos, ra->t.tile_dimensions.x, SE), */
-        /*                     (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a =
-         * 0x45}, */
-        /*                     (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a =
-         * 0x45}); */
-        /*             } */
-        /*         } */
-        /*     } */
-        /* } */
-
-        /* // Draw red outline */
-        /* ra->r.draw_rect(ra->r.state, */
-        /*                 tile_coords(ra->tile_pos, ra->t.tile_dimensions.x,
-         * NW), */
-        /*                 tile_coords(ra->tile_pos, ra->t.tile_dimensions.x,
-         * SE), */
-        /*                 (RGBA){.r = 0xFF, .a = ra->selected ? 0xEF : 0x95});
-         */
-
-        /* // If selected we want to pop up the tile picker */
-        /* if (ra->selected) { */
-        /*     ra->r.draw_rect_filled( */
-        /*         ra->r.state, */
-        /*         tile_coords(VEC2I(2, 2), ra->t.tile_dimensions.x, NW), */
-        /*         tile_coords(VEC2I(27, 17), ra->t.tile_dimensions.x, SE),
-         * WHITE, */
-        /*         (RGBA){.r = 0xAF, .g = 0xAF, .b = 0xAF, .a = 0xAF}); */
-
-        /*     // First check if they attempted to scroll past the end */
-        /*     if (ra->list_scroll_pos >= */
-        /*         rows_of_tiles - (num_rendered_rows - 1)) { */
-        /*         ra->list_scroll_pos = rows_of_tiles - (num_rendered_rows -
-         * 1); */
-        /*     } */
-
-        /*     // When the user does scroll down the last row of tiles may be */
-        /*     // incomplete, check this and move the the last tile if so */
-        /*     if (ra->list_scroll_pos == */
-        /*             rows_of_tiles - (num_rendered_rows - 1) && */
-        /*         ra->picker_pos.y == num_rendered_rows - 1) { */
-        /*         // Check how many tiles are being rendered in the last row */
-        /*         const int last_row_tiles = ra->t.num_tiles % tiles_per_row;
-         */
-
-        /*         if (ra->picker_pos.x >= last_row_tiles) { */
-        /*             ra->picker_pos.x = last_row_tiles - 1; */
-        /*         } */
-        /*     } */
-
-        /*     // Now draw all of the tiles that will fit */
-        /*     int starting_tile_index = ra->list_scroll_pos * tiles_per_row; */
-        /*     Vec2I tile = */
-        /*         VEC2I(starting_tile_index % (ra->t.dimensions_in_tiles.x), */
-        /*               (starting_tile_index / (ra->t.dimensions_in_tiles.x)));
-         */
-
-        /*     for (size_t row = 3; row < 17; row += 2) { */
-        /*         for (size_t col = 3; col < 27; col += 2) { */
-        /*             // Don't draw past the end of the tilemap */
-        /*             if ((tile.y * */
-        /*                  (ra->t.dimensions.x / ra->t.tile_dimensions.x)) + */
-        /*                     tile.x >= */
-        /*                 ra->t.num_tiles) { */
-        /*                 break; */
-        /*             } */
-
-        /*             ra->r.draw_tile(ra->r.state, VEC2I(col, row), VEC2I(4,
-         * 4), */
-        /*                             ra->t, tile, 0, 0); */
-
-        /*             tile.x++; */
-        /*             if (tile.x == */
-        /*                 ra->t.dimensions.x / ra->t.tile_dimensions.x) { */
-        /*                 tile.x = 0; */
-        /*                 tile.y++; */
-        /*             } */
-        /*         } */
-        /*     } */
-
-        /*     // Draw tile picker */
-        /*     Vec2I picker_draw_nw = */
-        /*         vec2i_add(tile_coords(vec2i_add(vec2i_mul(ra->picker_pos, 2),
-         */
-        /*                                         VEC2I(3, 3)), */
-        /*                               ra->t.tile_dimensions.x, NW), */
-        /*                   3); */
-        /*     Vec2I picker_draw_se = */
-        /*         vec2i_add(tile_coords(vec2i_add(vec2i_mul(ra->picker_pos, 2),
-         */
-        /*                                         VEC2I(3, 3)), */
-        /*                               ra->t.tile_dimensions.x, SE), */
-        /*                   5); */
-        /*     ra->r.draw_rect(ra->r.state, picker_draw_nw, picker_draw_se, */
-        /*                     (RGBA){.r = 0xFF, .g = 0xFF, .b = 0x00, .a =
-         * 0x95}); */
-        /* } */
+#ifdef DEBUG
+        for (int i = 0; i < debug_layers; i++) {
+            debug_layer_stack[i]->render(debug_layer_stack[i]->state);
+        }
+#endif
 
         printf("\033[H");
         fflush(stdout);
@@ -406,41 +210,11 @@ void* render_thread(void* arg) {
         printf("|'r'      | to flip tile horizontally   |\r\n");
         printf("|'Enter'  | to change a tile            |\r\n");
         printf("|'Escape' | to unselect a tile          |\r\n");
+#ifdef DEBUG
         printf("|'d'      | to enable debug view        |\r\n");
+#endif
         printf("+---------------------------------------+\r\n");
-        static char buf[4096];
-        if (ra->debug) {
-            printf("\033[0J");
-            printf("Overlay highlight: ");
-            switch (ra->attribute_overlay) {
-            case 1:
-                printf(TILE_HORIZONTAL_FLIP_STR);
-                break;
-            case 2:
-                printf(TILE_VERTICAL_FLIP_STR);
-                break;
-            case 3:
-                printf(TILE_WALL_STR);
-                break;
-            case 4:
-                printf(TILE_ENEMY_STR);
-                break;
-            case 5:
-                printf(TILE_DOOR_STR);
-                break;
-            case 6:
-                printf(TILE_STAIRS_STR);
-                break;
-            case 7:
-                printf(TILE_LOOT_STR);
-                break;
-            default:
-                printf("none");
-            }
-            printf("\r\n");
-            map_tile_attributes_debug(ra->m, ra->tile_pos, buf, 4096);
-            printf("%s\r\n", buf);
-        }
+        printf("FPS %.2f\r\n", framerate);
 
     SLEEP:;
         struct timespec frame_end = {0};
@@ -456,6 +230,14 @@ void* render_thread(void* arg) {
     }
 
 CLEANUP:
+#ifdef DEBUG
+    for (int i = debug_layers - 1; i >= 0; i--) {
+        debug_layer_stack[i]->deinit(debug_layer_stack[i]->state);
+    }
+#endif
+    for (int i = layers - 1; i >= 0; i--) {
+        layer_stack[i]->deinit(layer_stack[i]->state);
+    }
     return 0;
 }
 
@@ -468,6 +250,11 @@ int main(int argc, char* argv[]) {
                 argv[0]);
         return 1;
     }
+
+    Layer l =
+        scrolling_text_layer_init(NULL, "You encountered a goblin! How does it "
+                                        "handle a bit longer of a phrase?");
+    exit(1);
 
     srand(time(NULL));
 

@@ -7,9 +7,13 @@ typedef struct Layer Layer;
 
 typedef enum LayerEventStatus {
     IGNORED,
-    HANLDED,
+    HANDLED,
     POP,
     PUSH,
+#ifdef DEBUG
+    DEBUG_PUSH,
+    DEBUG_POP,
+#endif
 } LayerEventStatus;
 
 typedef struct LayerEventResponse {
@@ -25,4 +29,5 @@ typedef struct Layer {
 
     LayerEventResponse (*handle_input)(void* state, Event e);
     void (*render)(void* state);
+    void (*deinit)(void* state);
 } Layer;

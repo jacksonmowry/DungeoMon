@@ -1,40 +1,61 @@
+#include "debug_layer.h"
 #include "layer.h"
 #include "map.h"
+#include "renderer.h"
 
 typedef struct DebugState {
+    Renderer* r;
     Map* m;
     Vec2I* tile_pos;
-    int* attribute_overlay;
 
-    bool debug;
+    int attribute_overlay;
 } DebugState;
 
-LayerEventResponse handle_input(void* state, Event e) {
-    // Handle
-    switch (e.event_type) {
-
-    }
-
-    return (LayerEventResponse){0};
-}
-
-void render(void* state) {
+static LayerEventResponse handle_input(void* state, Event e) {
     DebugState* s = (DebugState*)state;
 
-    printf("+---------------------------------------+\r\n");
-    printf("|'q'      | to quit                     |\r\n");
-    printf("|'hjkl'   | to move left down up right  |\r\n");
-    printf("|'r'      | to rotate tile clockwise    |\r\n");
-    printf("|'v'      | to flip tile vertically     |\r\n");
-    printf("|'r'      | to flip tile horizontally   |\r\n");
-    printf("|'Enter'  | to change a tile            |\r\n");
-    printf("|'Escape' | to unselect a tile          |\r\n");
-    printf("|'d'      | to enable debug view        |\r\n");
-    printf("+---------------------------------------+\r\n");
+    LayerEventResponse response = {0};
+    // Handle
+    switch (e.event_type) {
+    case T:
+        s->attribute_overlay = (s->attribute_overlay + 1) % TILE_NUM_ATTRIBUTES;
+        response.status = HANDLED;
+        break;
+    default:
+        response.status = IGNORED;
+        break;
+    }
+
+    return response;
+}
+
+static void render(void* state) {
+    DebugState* s = (DebugState*)state;
+
+    if (s->attribute_overlay != TILE_NORMAL) {
+        // Draw a blue tint over all tiles with the currently selected
+        // attribute
+        for (size_t row = 0; row < s->m->dimensions.y; row++) {
+            for (size_t col = 0; col < s->m->dimensions.x; col++) {
+                size_t index = (row * s->m->dimensions.x) + col;
+                if (s->m->tile_attributes[index] &
+                    (1 << (s->attribute_overlay - 1))) {
+                    Vec2I pos = VEC2I(col, row);
+                    s->r->draw_rect_filled(
+                        s->r->state,
+                        tile_coords(pos, s->m->t.tile_dimensions.x, NW),
+                        tile_coords(pos, s->m->t.tile_dimensions.x, SE),
+                        (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a = 0x45},
+                        (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a = 0x45});
+                }
+            }
+        }
+    }
+
     static char buf[4096];
     printf("\033[0J");
     printf("Overlay highlight: ");
-    switch (*s->attribute_overlay) {
+    switch (s->attribute_overlay) {
     case 1:
         printf(TILE_HORIZONTAL_FLIP_STR);
         break;
@@ -64,16 +85,22 @@ void render(void* state) {
     printf("%s\r\n", buf);
 }
 
-Layer debug_layer_init(Map* m, Vec2I* tile_pos, int* attribute_overlay) {
+static void deinit(void* state) {
+    DebugState* s = (DebugState*)state;
+    free(s);
+}
+
+Layer debug_layer_init(Renderer* r, Map* m, Vec2I* tile_pos) {
     DebugState* s = calloc(1, sizeof(*s));
+    s->r = r;
     s->m = m;
     s->tile_pos = tile_pos;
-    s->attribute_overlay = attribute_overlay;
 
     return (Layer){
         .state = s,
 
         .handle_input = handle_input,
         .render = render,
+        .deinit = deinit,
     };
 }

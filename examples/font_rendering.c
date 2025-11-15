@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
     const size_t width_in_tiles = width / tile_dim;
     const size_t height_in_tiles = height / tile_dim;
 
-    size_t render_scale = 2;
+    size_t render_scale = 4;
     const size_t font_scale = 1;
 
     // Update render scale is user requests
