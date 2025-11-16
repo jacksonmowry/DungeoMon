@@ -16,7 +16,7 @@
 #define STARTING_PLAYER_WEAPONS 5
 
 static Damages WeaponLookup(int id) { return (Damages){}; }
-static Player player_init(void) {
+Player player_init(void) {
     Player empty_player;
     empty_player.armor = STARTING_PLAYER_ARMOR;
     empty_player.health = STARTING_PLAYER_HEALTH;

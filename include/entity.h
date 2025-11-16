@@ -1,3 +1,5 @@
+#pragma once
+#include "player.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -16,16 +18,20 @@ typedef struct EntityUpdate {
 } EntityUpdate;
 typedef struct Entity {
     void* state;
+    int id;
     bool animation;
     int x_pos;
     int y_pos;
-    int hp;
+    int health;
+    int damage;
     int mana;
     int armor;
     bool death;
     int base_dmg;
     void (*move)(void* state, Vec2 velocity, int x_pos, int y_pos);
-    void (*battle)(void* state);
+    void (*interact)(struct Entity* ent, Player* player);
     void (*speak)(void* state, const char* statement);
-    void (*update)(struct Entity* this, EntityUpdate update);
+    EntityUpdate (*produce_update)(void* state, struct Entity* this, int move);
+    void (*recieve_update)(struct Entity* this, EntityUpdate update);
+    void (*deinit)(struct Entity* this);
 } Entity;
