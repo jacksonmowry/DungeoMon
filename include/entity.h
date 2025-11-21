@@ -1,5 +1,4 @@
 #pragma once
-#include "player.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -28,10 +27,13 @@ typedef struct Entity {
     int armor;
     bool death;
     int base_dmg;
-    void (*move)(void* state, Vec2 velocity, int x_pos, int y_pos);
-    void (*interact)(struct Entity* ent, Player* player);
-    void (*speak)(void* state, const char* statement);
-    EntityUpdate (*produce_update)(void* state, struct Entity* this, int move);
-    void (*recieve_update)(struct Entity* this, EntityUpdate update);
-    void (*deinit)(struct Entity* this);
+    const struct entity_vtable {
+
+        void (*move)(struct Entity* this, Vec2 velocity, int x_pos, int y_pos);
+        void (*speak)(struct Entity* this, const char* statement);
+        EntityUpdate (*produce_update)(struct Entity* this);
+        void (*recieve_update)(struct Entity* this, EntityUpdate update);
+        void (*deinit)(struct Entity* this);
+
+    } entity_vtable;
 } Entity;
