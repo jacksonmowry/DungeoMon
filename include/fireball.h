@@ -1,3 +1,5 @@
+#pragma once
+
 #include "entity.h"
 
 #define FIREBALL_DMG 10

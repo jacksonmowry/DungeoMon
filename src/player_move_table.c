@@ -8,11 +8,13 @@
 #include "player.h"
 #include "punch.h"
 #include "sword_swing.h"
+#include <assert.h>
 
 EntityUpdate player_move_lookup(Player* p, PLAYER_MOVES move) {
+    assert(p);
 
     switch (move) {
-    case (FIREBALL):
+    case FIREBALL:
         if (p->mana < FIREBALL_MANA_COST) {
             fprintf(stderr, "Did not have enough mana to cast FIREBALL\n");
             return (EntityUpdate){0};
@@ -20,14 +22,13 @@ EntityUpdate player_move_lookup(Player* p, PLAYER_MOVES move) {
             p->mana -= FIREBALL_MANA_COST;
             return fireball();
         }
-    case (SWORD_SWING):
+    case SWORD_SWING:
         return sword_swing();
-    case (GREATSWORD_SWING):
+    case GREATSWORD_SWING:
         return greatsword_swing();
-    case (DAGGER_SWING):
+    case DAGGER_SWING:
         return dagger_swing();
-    case (HEALING_WORD):
-
+    case HEALING_WORD:
         if (p->mana < HEALING_WORD_MANA_COST) {
             fprintf(stderr, "Did not have enough mana to cast HEALING_WORD\n");
         } else {
@@ -35,9 +36,9 @@ EntityUpdate player_move_lookup(Player* p, PLAYER_MOVES move) {
             p->health += HEALING_WORD_HEALING;
         }
         return (EntityUpdate){0};
-    case (PUNCH):
+    case PUNCH:
         return punch();
-    case (ENERGY_BEAM):
+    case ENERGY_BEAM:
         if (p->mana < HEALING_WORD_MANA_COST) {
             fprintf(stderr, "Did not have enough mana to cast HEALING_WORD\n");
             return (EntityUpdate){0};

@@ -4,10 +4,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <vec.h>
-typedef struct Player {
 
+typedef struct Player {
     int health;
     int armor;
     int mana;

@@ -13,7 +13,8 @@ examples: bin/font_rendering \
 		bin/sprites \
 		bin/map \
 		bin/map_editor \
-		bin/text_box
+		bin/text_box \
+		bin/basic_combat
 
 bin/font_rendering: examples/font_rendering.c lib/libgraphics.a
 	$(CC) $(CFLAGS) $^ -o $@ -Llib -lgraphics -lm -Iinclude -lsixel -lpng
@@ -35,6 +36,9 @@ bin/map_editor: examples/map_editor.c lib/libgraphics.a
 
 bin/text_box: examples/text_box.c lib/libgraphics.a
 	$(CC) $(CFLAGS) $^ -o $@ -Llib -lgraphics -lm -Iinclude -lsixel -lpng -lpthread
+
+bin/basic_combat: examples/basic_combat.c
+	$(CC) $(CFLAGS) $^ -o $@ -Iinclude src/player.c src/player_move_table.c src/sword_swing.c src/greatsword_swing.c src/dagger_swing.c src/punch.c src/healing_word.c src/energy_beam.c src/goblin.c src/fireball.c
 
 lib/libgraphics.a: obj/timespec.o obj/sx.o obj/tile.o obj/vec.o obj/color.o obj/png_handler.o obj/events.o obj/map.o obj/map_layer.o obj/tile_selection_list.o obj/debug_layer.o obj/scrolling_text_layer.o
 	ar rs lib/libgraphics.a obj/*
