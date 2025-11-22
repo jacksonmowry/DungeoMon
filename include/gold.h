@@ -1,5 +1,6 @@
+#pragma once
+
 #include <item.h>
-#include <stdlib.h>
 
 typedef struct Gold {
     void* state;
