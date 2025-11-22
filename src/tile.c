@@ -16,21 +16,23 @@ Vec2I tile_coords(Vec2I point, ssize_t tile_size, TileCorner corner) {
     case SOUTH_EAST:
         return vec2i_add(vec2i_mul(point, tile_size), tile_size - 1);
     }
+
+    return (Vec2I){0};
 }
 
 void tilemap_deinit(Tilemap t) {
     if (t.id) {
-        free(t.id);
+        free((void*)t.id);
     }
 
     if (t.pixels) {
-        free(t.pixels);
+        free((void*)t.pixels);
         t.pixels = NULL;
     }
 
     if (t.tile_names) {
         for (size_t i = 0; i < t.num_tiles; i++) {
-            free(t.tile_names[i]);
+            free((void*)t.tile_names[i]);
         }
         free(t.tile_names);
         t.tile_names = NULL;
@@ -40,8 +42,8 @@ void tilemap_deinit(Tilemap t) {
 Tilemap tilemap_load(const char* pam_path, const char* tile_names_path,
                      Vec2I tile_dims, Vec2I tile_gaps) {
     Vec2I dimensions;
-    RGBA* pixels = read_pam_file(pam_path, &dimensions);
-    char** tile_names = NULL;
+    const RGBA* pixels = read_pam_file(pam_path, &dimensions);
+    const char** tile_names = NULL;
     if (tile_names_path) {
         FILE* fp = fopen(tile_names_path, "r");
         if (!fp) {
@@ -49,8 +51,8 @@ Tilemap tilemap_load(const char* pam_path, const char* tile_names_path,
         }
         tile_names = malloc(sizeof(*tile_names) * (dimensions.x / tile_dims.x) *
                             (dimensions.y / tile_dims.y));
-        for (size_t i = 0;
-             i < (dimensions.x / tile_dims.x) * (dimensions.y / tile_dims.y);
+        for (size_t i = 0; i < (size_t)((dimensions.x / tile_dims.x) *
+                                        (dimensions.y / tile_dims.y));
              i++) {
             char buf[256];
             if (fscanf(fp, "%s", buf) != 1) {
@@ -65,12 +67,11 @@ Tilemap tilemap_load(const char* pam_path, const char* tile_names_path,
     }
 
 SKIP:;
-    char* name = NULL;
-    name = realpath(pam_path, name);
+    char* name = realpath(pam_path, NULL);
     char* last_slash = strrchr(name, '/');
     last_slash++;
     *strrchr(last_slash, '.') = '\0';
-    char* tilemap_id = strdup(last_slash);
+    const char* tilemap_id = strdup(last_slash);
 
     free(name);
 

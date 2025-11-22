@@ -1,2 +1,10 @@
 -I
 include
+-W
+extra
+-W
+all
+-pedantic
+-W
+error
+-std=c23

@@ -32,14 +32,14 @@ typedef enum TileRotation {
 Vec2I tile_coords(Vec2I point, ssize_t tile_size, TileCorner corner);
 
 typedef struct Tilemap {
-    char* id;
+    const char* id;
 
-    RGBA* pixels;
+    const RGBA* pixels;
     Vec2I dimensions;
     Vec2I dimensions_in_tiles;
     size_t num_tiles;
 
-    char** tile_names;
+    const char** tile_names;
 
     Vec2I tile_dimensions;
     Vec2I tile_gaps;

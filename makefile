@@ -5,6 +5,8 @@
 # @version 0.1
 .SUFFIXES:
 
+CFLAGS += -Wall -Wextra -pedantic -Werror
+
 all: examples
 
 examples: bin/font_rendering \

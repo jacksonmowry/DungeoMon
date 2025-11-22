@@ -7,51 +7,55 @@
 #include <stdlib.h>
 #include <string.h>
 
-void map_deinit(Map m) {
-    if (m.tiles) {
-        free(m.tiles);
-        m.tiles = NULL;
+void map_deinit(Map* m) {
+    assert(m);
+
+    if (m->tiles) {
+        free((void*)m->tiles);
+        m->tiles = NULL;
     }
 
-    if (m.tile_rotations) {
-        free(m.tile_rotations);
-        m.tile_rotations = NULL;
+    if (m->tile_rotations) {
+        free(m->tile_rotations);
+        m->tile_rotations = NULL;
     }
 
-    if (m.tile_attributes) {
-        free(m.tile_attributes);
-        m.tile_attributes = NULL;
+    if (m->tile_attributes) {
+        free(m->tile_attributes);
+        m->tile_attributes = NULL;
     }
 }
 
-bool map_save(const Map m, const char* filename, SaveMode mode) {
+bool map_save(const Map* m, const char* filename, SaveMode mode) {
+    assert(m);
+
     FILE* fp = fopen(filename, "w");
     if (!fp) {
         perror(filename);
         exit(1);
     }
 
-    fprintf(fp, "WIDTH      %d\n", m.dimensions.x);
-    fprintf(fp, "HEIGHT     %d\n", m.dimensions.y);
-    fprintf(fp, "TILEMAP ID %s\n", m.t.id);
+    fprintf(fp, "WIDTH      %d\n", m->dimensions.x);
+    fprintf(fp, "HEIGHT     %d\n", m->dimensions.y);
+    fprintf(fp, "TILEMAP ID %s\n", m->t->id);
     fprintf(fp, "MODE       %s\n",
             (mode == TILE_NUM) ? "tile_num" : "tile_name");
     fprintf(fp, "\n");
 
     fprintf(fp, "MAP TILES\n");
-    for (size_t row = 0; row < m.dimensions.y; row++) {
-        for (size_t col = 0; col < m.dimensions.x; col++) {
-            size_t map_index = (row * m.dimensions.x) + col;
-            Vec2I tile = m.tiles[map_index];
-            size_t tile_index = (tile.y * m.t.dimensions_in_tiles.x) + tile.x;
+    for (size_t row = 0; row < (size_t)m->dimensions.y; row++) {
+        for (size_t col = 0; col < (size_t)m->dimensions.x; col++) {
+            size_t map_index = (row * m->dimensions.x) + col;
+            Vec2I tile = m->tiles[map_index];
+            size_t tile_index = (tile.y * m->t->dimensions_in_tiles.x) + tile.x;
 
             if (mode == TILE_NUM) {
                 fprintf(fp, "%3zu", tile_index);
             } else {
-                fprintf(fp, "%s", m.t.tile_names[tile_index]);
+                fprintf(fp, "%s", m->t->tile_names[tile_index]);
             }
 
-            if (col != m.dimensions.x - 1) {
+            if (col != (size_t)(m->dimensions.x - 1)) {
                 fprintf(fp, " ");
             } else {
                 fprintf(fp, "\n");
@@ -61,14 +65,14 @@ bool map_save(const Map m, const char* filename, SaveMode mode) {
     fprintf(fp, "\n");
 
     fprintf(fp, "MAP TILE ATTRIBUTES\n");
-    for (size_t row = 0; row < m.dimensions.y; row++) {
-        for (size_t col = 0; col < m.dimensions.x; col++) {
-            size_t map_index = (row * m.dimensions.x) + col;
-            uint16_t tile_attributes = m.tile_attributes[map_index];
+    for (size_t row = 0; row < (size_t)m->dimensions.y; row++) {
+        for (size_t col = 0; col < (size_t)m->dimensions.x; col++) {
+            size_t map_index = (row * m->dimensions.x) + col;
+            uint16_t tile_attributes = m->tile_attributes[map_index];
 
             fprintf(fp, "%04hX", tile_attributes);
 
-            if (col != m.dimensions.x - 1) {
+            if (col != (size_t)(m->dimensions.x - 1)) {
                 fprintf(fp, " ");
             } else {
                 fprintf(fp, "\n");
@@ -78,14 +82,14 @@ bool map_save(const Map m, const char* filename, SaveMode mode) {
     fprintf(fp, "\n");
 
     fprintf(fp, "MAP TILE ROTATIONS\n");
-    for (size_t row = 0; row < m.dimensions.y; row++) {
-        for (size_t col = 0; col < m.dimensions.x; col++) {
-            size_t map_index = (row * m.dimensions.x) + col;
-            int tile_rotations = m.tile_rotations[map_index];
+    for (size_t row = 0; row < (size_t)m->dimensions.y; row++) {
+        for (size_t col = 0; col < (size_t)m->dimensions.x; col++) {
+            size_t map_index = (row * m->dimensions.x) + col;
+            int tile_rotations = m->tile_rotations[map_index];
 
             fprintf(fp, "%1d", tile_rotations);
 
-            if (col != m.dimensions.x - 1) {
+            if (col != (size_t)(m->dimensions.x - 1)) {
                 fprintf(fp, " ");
             } else {
                 fprintf(fp, "\n");
@@ -99,7 +103,7 @@ bool map_save(const Map m, const char* filename, SaveMode mode) {
     return true;
 }
 
-Map map_load(const char* filename, Tilemap t) {
+Map map_load(const char* filename, const Tilemap* t) {
     Map m = {0};
 
     FILE* fp = fopen(filename, "r");
@@ -133,10 +137,10 @@ Map map_load(const char* filename, Tilemap t) {
                 buf);
         exit(1);
     }
-    if (strcmp(id, t.id)) {
+    if (strcmp(id, t->id)) {
         fprintf(stderr,
                 "Error while reading map, expected tilemap id: %s, got: %s\n",
-                t.id, id);
+                t->id, id);
     }
     // MODE mode
     fgets(buf, sizeof(buf), fp);
@@ -146,7 +150,8 @@ Map map_load(const char* filename, Tilemap t) {
                 "Error while reading map, expected: MODE mode, got: %s\n", buf);
         exit(1);
     }
-    SaveMode sm = (!strncmp("tile_num", mode_buf, 8)) ? TILE_NUM : TILE_NAME;
+    const SaveMode sm =
+        (!strncmp("tile_num", mode_buf, 8)) ? TILE_NUM : TILE_NAME;
     // MAP TILES
     do {
         fgets(buf, sizeof(buf), fp);
@@ -160,9 +165,9 @@ Map map_load(const char* filename, Tilemap t) {
 
     // Finally allocate the buffer and begin reading tiles
     m.tiles = malloc(m.dimensions.x * m.dimensions.y * sizeof(*m.tiles));
-    for (size_t row = 0; row < m.dimensions.y; row++) {
-        for (size_t col = 0; col < m.dimensions.x; col++) {
-            size_t map_index = (row * m.dimensions.x) + col;
+    for (size_t row = 0; row < (size_t)m.dimensions.y; row++) {
+        for (size_t col = 0; col < (size_t)m.dimensions.x; col++) {
+            const size_t map_index = (row * m.dimensions.x) + col;
             Vec2I tile_pos;
 
             if (sm == TILE_NUM) {
@@ -173,8 +178,8 @@ Map map_load(const char* filename, Tilemap t) {
                     exit(1);
                 }
 
-                tile_pos = VEC2I(tile_index % t.dimensions_in_tiles.x,
-                                 (tile_index / t.dimensions_in_tiles.x));
+                tile_pos = VEC2I(tile_index % t->dimensions_in_tiles.x,
+                                 (tile_index / t->dimensions_in_tiles.x));
             } else {
                 assert(false);
             }
@@ -197,9 +202,9 @@ Map map_load(const char* filename, Tilemap t) {
     // Attributes
     m.tile_attributes =
         malloc(m.dimensions.x * m.dimensions.y * sizeof(*m.tile_attributes));
-    for (size_t row = 0; row < m.dimensions.y; row++) {
-        for (size_t col = 0; col < m.dimensions.x; col++) {
-            size_t map_index = (row * m.dimensions.x) + col;
+    for (size_t row = 0; row < (size_t)m.dimensions.y; row++) {
+        for (size_t col = 0; col < (size_t)m.dimensions.x; col++) {
+            const size_t map_index = (row * m.dimensions.x) + col;
             if (fscanf(fp, "%hX", m.tile_attributes + map_index) != 1) {
                 fprintf(stderr, "Error reading tile attribute %zu/%d\n",
                         map_index, m.dimensions.x * m.dimensions.y);
@@ -222,10 +227,10 @@ Map map_load(const char* filename, Tilemap t) {
     // Rotations
     m.tile_rotations =
         malloc(m.dimensions.x * m.dimensions.y * sizeof(*m.tile_rotations));
-    for (size_t row = 0; row < m.dimensions.y; row++) {
-        for (size_t col = 0; col < m.dimensions.x; col++) {
-            size_t map_index = (row * m.dimensions.x) + col;
-            if (fscanf(fp, "%d", m.tile_rotations + map_index) != 1) {
+    for (size_t row = 0; row < (size_t)m.dimensions.y; row++) {
+        for (size_t col = 0; col < (size_t)m.dimensions.x; col++) {
+            const size_t map_index = (row * m.dimensions.x) + col;
+            if (fscanf(fp, "%d", (int*)(m.tile_rotations + map_index)) != 1) {
                 fprintf(stderr, "Error reading tile rotation %zu/%d\n",
                         map_index, m.dimensions.x * m.dimensions.y);
                 exit(1);
@@ -238,13 +243,13 @@ Map map_load(const char* filename, Tilemap t) {
     return m;
 }
 
-int map_tile_attributes_debug(const Map m, const Vec2I pos, char* buf,
+int map_tile_attributes_debug(const Map* m, const Vec2I pos, char* buf,
                               size_t buf_len) {
     const char* t = "true";
     const char* f = "false";
 
-    size_t index = (pos.y * m.dimensions.x) + pos.x;
-    uint16_t attributes = m.tile_attributes[index];
+    size_t index = (pos.y * m->dimensions.x) + pos.x;
+    uint16_t attributes = m->tile_attributes[index];
 
     const char* normal = attributes & TILE_NORMAL ? t : f;
     const char* horizontal_flip = attributes & TILE_HORIZONTAL_FLIP ? t : f;
@@ -255,7 +260,7 @@ int map_tile_attributes_debug(const Map m, const Vec2I pos, char* buf,
     const char* stairs = attributes & TILE_STAIRS ? t : f;
     const char* loot = attributes & TILE_LOOT ? t : f;
     char* rotation;
-    switch (m.tile_rotations[index]) {
+    switch (m->tile_rotations[index]) {
     case _0:
         rotation = "0";
         break;
@@ -270,7 +275,7 @@ int map_tile_attributes_debug(const Map m, const Vec2I pos, char* buf,
         break;
     }
 
-    Vec2I actual_tile = m.tiles[(pos.y * m.dimensions.x) + pos.x];
+    Vec2I actual_tile = m->tiles[(pos.y * m->dimensions.x) + pos.x];
 
     return snprintf(
         buf, buf_len - 1,
@@ -280,9 +285,9 @@ int map_tile_attributes_debug(const Map m, const Vec2I pos, char* buf,
         "%s,\r\n\t\"enemy\": "
         "%s,\r\n\t\"door\": %s,\r\n\t\"stairs\": %s,\r\n\t\"loot\": %s\r\n}",
         pos.x, pos.y,
-        m.t.tile_names
-            ? m.t.tile_names[(actual_tile.y * m.t.dimensions_in_tiles.x) +
-                             actual_tile.x]
+        m->t->tile_names
+            ? m->t->tile_names[(actual_tile.y * m->t->dimensions_in_tiles.x) +
+                               actual_tile.x]
             : "n/a",
         normal, horizontal_flip, vertical_flip, rotation, wall, enemy, door,
         stairs, loot);

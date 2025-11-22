@@ -1,8 +1,8 @@
 #pragma once
 
+#include <assert.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
@@ -41,7 +41,8 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
                                 .capacity = capacity,                          \
                                 .at = 0,                                       \
                                 .lock = calloc(1, sizeof(*lq.lock))};          \
-        int result = pthread_mutex_init(lq.lock, NULL);                        \
+        assert(lq.items);                                                      \
+        pthread_mutex_init(lq.lock, NULL);                                     \
                                                                                \
         return lq;                                                             \
     }                                                                          \
@@ -54,6 +55,7 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
     }                                                                          \
     [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_add(         \
         LockableQueue_##T* q, T item) {                                        \
+        assert(q);                                                             \
         LockableQueue_##T##_Result result = {0};                               \
         pthread_mutex_lock(q->lock);                                           \
         if (q->size != q->capacity) {                                          \
@@ -68,8 +70,9 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
     }                                                                          \
     [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_tryadd(      \
         LockableQueue_##T* q, T item) {                                        \
+        assert(q);                                                             \
         LockableQueue_##T##_Result result = {0};                               \
-        int mtx_result = pthread_mutex_trylock(q->lock);                       \
+        const int mtx_result = pthread_mutex_trylock(q->lock);                 \
         if (mtx_result != 0) {                                                 \
             result.status = BLOCKED;                                           \
             return result;                                                     \
@@ -87,6 +90,7 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
     }                                                                          \
     [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_get(         \
         LockableQueue_##T* q) {                                                \
+        assert(q);                                                             \
         LockableQueue_##T##_Result result = {0};                               \
         pthread_mutex_lock(q->lock);                                           \
                                                                                \
@@ -104,8 +108,9 @@ typedef enum Result { SUCCESS, BLOCKED, EMPTY, FULL } Result;
     }                                                                          \
     [[nodiscard]] LockableQueue_##T##_Result lockable_queue_##T##_tryget(      \
         LockableQueue_##T* q) {                                                \
+        assert(q);                                                             \
         LockableQueue_##T##_Result result = {0};                               \
-        int mtx_result = pthread_mutex_trylock(q->lock);                       \
+        const int mtx_result = pthread_mutex_trylock(q->lock);                 \
         if (mtx_result != 0) {                                                 \
             result.status = BLOCKED;                                           \
             return result;                                                     \

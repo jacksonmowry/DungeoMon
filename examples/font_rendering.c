@@ -24,7 +24,6 @@ int main(int argc, char* argv[]) {
     const size_t height_in_tiles = height / tile_dim;
 
     size_t render_scale = 4;
-    const size_t font_scale = 1;
 
     // Update render scale is user requests
     if (argc > 1) {
@@ -46,11 +45,11 @@ int main(int argc, char* argv[]) {
         r.draw_text(r.state, s, tile_coords(pos, tile_dim, NW), RGBA(WHITE), 1);
 
         pos.x++;
-        if (pos.x >= width_in_tiles - 1) {
+        if ((size_t)pos.x >= width_in_tiles - 1) {
             pos.x = 1;
             pos.y++;
 
-            if (pos.y >= height_in_tiles) {
+            if ((size_t)pos.y >= height_in_tiles) {
                 fprintf(stderr, "Out of space on the screen\n");
                 goto cleanup;
             }

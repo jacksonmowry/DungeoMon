@@ -1,7 +1,7 @@
 #include "color.h"
 
 RGB color_blend(RGB base_color, RGBA new_color) {
-    double alpha = (double)new_color.a / 255;
+    const double alpha = (double)new_color.a / 255;
     if (alpha == 0) {
         return base_color;
     }

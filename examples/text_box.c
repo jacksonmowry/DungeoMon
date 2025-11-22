@@ -136,7 +136,6 @@ void* render_thread(void* arg) {
         }
 #endif
 
-    INPUT_LOOP:
         for (int i = layers - 1; i >= 0; i--) {
             LayerEventResponse response =
                 layer_stack[i]->handle_input(layer_stack[i]->state, event.item);
@@ -276,7 +275,6 @@ int main(int argc, char* argv[]) {
         }
 
         // User keypresses
-        EventQueueResult result;
         char c = '\0';
         if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) {
             die("read");
@@ -328,7 +326,10 @@ int main(int argc, char* argv[]) {
             break;
         }
 
-        result = lockable_queue_Event_tryadd(&ra.events, e);
+        EventQueueResult result = lockable_queue_Event_tryadd(&ra.events, e);
+        if (result.status == BLOCKED) {
+            ;
+        }
 
         if (c == 'q') {
             goto CLEANUP;

@@ -23,9 +23,10 @@ typedef struct Renderer {
     void (*draw_pixel)(void* state, Vec2I p1, RGBA color);
     void (*draw_text)(void* state, char* str, Vec2I pos, RGBA color,
                       size_t scale);
-    void (*draw_tile)(void* state, Vec2I dest_tile, Vec2I tile_shift, Tilemap t,
-                      Vec2I source_tile, TileRotation rot, int flip);
-    void (*draw_map)(void* state, Map m);
+    void (*draw_tile)(void* state, Vec2I dest_tile, Vec2I tile_shift,
+                      const Tilemap* t, Vec2I source_tile, TileRotation rot,
+                      int flip);
+    void (*draw_map)(void* state, const Map* m);
     void (*render)(void* state);
     void (*update_scale)(void* state, size_t scale);
     void (*cleanup)(void* state);

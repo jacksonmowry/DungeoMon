@@ -1,8 +1,3 @@
-#include "renderer.h"
-#include "sx.h"
-#include "tile.h"
-#include "timespec.h"
-#include "vec.h"
 #include <ctype.h>
 #include <errno.h>
 #include <float.h>
@@ -53,15 +48,7 @@ void enableRawMode() {
 }
 
 int main(int argc, char* argv[]) {
-    const size_t tile_dim = 8;
-    const size_t width = 240;
-    const size_t height = 160;
-
-    const size_t width_in_tiles = width / tile_dim;
-    const size_t height_in_tiles = height / tile_dim;
-
     size_t render_scale = 2;
-    const size_t font_scale = 1;
 
     // Update render scale is user requests
     if (argc > 1) {

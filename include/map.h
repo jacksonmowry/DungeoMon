@@ -25,7 +25,7 @@
 #define TILE_LOOT_STR "loot"
 
 typedef struct Map {
-    Tilemap t;
+    const Tilemap* t;
     Vec2I* tiles;
     TileRotation* tile_rotations;
     uint16_t* tile_attributes;
@@ -38,15 +38,15 @@ typedef enum SaveMode {
     TILE_NAME,
 } SaveMode;
 
-void map_deinit(Map m);
+void map_deinit(Map* m);
 
-bool map_save(const Map m, const char* filename, SaveMode mode);
+bool map_save(const Map* m, const char* filename, SaveMode mode);
 
 // TODO take a look into data ownership here
 // We need to be given a tilemap because we store it directly for now
 // This copies some of the data but not any of the important stuff that's
 // allocated In the future we may way to just take this in by pointer
-Map map_load(const char* filename, Tilemap t);
+Map map_load(const char* filename, const Tilemap* t);
 
-int map_tile_attributes_debug(const Map m, const Vec2I pos, char* buf,
+int map_tile_attributes_debug(const Map* m, const Vec2I pos, char* buf,
                               size_t buf_len);

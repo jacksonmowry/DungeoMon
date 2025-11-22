@@ -145,7 +145,6 @@ void* render_thread(void* arg) {
         }
 #endif
 
-    INPUT_LOOP:
         for (int i = layers - 1; i >= 0; i--) {
             LayerEventResponse response =
                 layer_stack[i]->handle_input(layer_stack[i]->state, event.item);
@@ -267,7 +266,7 @@ int main(int argc, char* argv[]) {
     RenderArgs ra = {
         .r = r,
         .t = t,
-        .m = map_load("maps/test.map", t),
+        .m = map_load("maps/test.map", &t),
 
         .tile_pos = {0},
         .picker_pos = {0},
@@ -312,7 +311,6 @@ int main(int argc, char* argv[]) {
         }
 
         // User keypresses
-        EventQueueResult result;
         char c = '\0';
         if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) {
             die("read");
@@ -364,7 +362,12 @@ int main(int argc, char* argv[]) {
             break;
         }
 
-        result = lockable_queue_Event_tryadd(&ra.events, e);
+        const EventQueueResult result =
+            lockable_queue_Event_tryadd(&ra.events, e);
+
+        if (result.status == BLOCKED) {
+            ;
+        }
 
         if (c == 'q') {
             goto CLEANUP;
@@ -389,5 +392,5 @@ CLEANUP:
     r.cleanup(r.state);
     tilemap_deinit(t);
     lockable_queue_Event_deinit(ra.events);
-    map_deinit(ra.m);
+    map_deinit(&ra.m);
 }

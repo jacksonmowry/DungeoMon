@@ -4,6 +4,7 @@
 #include "renderer.h"
 #include "tile.h"
 #include "vec.h"
+#include <assert.h>
 #include <stdbool.h>
 
 // Anything that is a pointer is data we do not own
@@ -21,6 +22,8 @@ typedef struct TileListState {
 } TileListState;
 
 static LayerEventResponse handle_input(void* state, Event e) {
+    assert(state);
+
     TileListState* s = (TileListState*)state;
     LayerEventResponse response = {0};
 
@@ -61,20 +64,17 @@ static LayerEventResponse handle_input(void* state, Event e) {
         // the map with the currently selected tile
         const int starting_tile_index = s->list_scroll_pos * s->tiles_per_row;
         Vec2I tile =
-            VEC2I(starting_tile_index % (s->m->t.dimensions_in_tiles.x),
-                  (starting_tile_index / (s->m->t.dimensions_in_tiles.x)));
+            VEC2I(starting_tile_index % (s->m->t->dimensions_in_tiles.x),
+                  (starting_tile_index / (s->m->t->dimensions_in_tiles.x)));
 
-        int tile_offset =
+        const int tile_offset =
             (s->cursor_pos.y * s->tiles_per_row) + s->cursor_pos.x;
         tile = vec2i_add(tile,
-                         VEC2I((tile_offset % s->m->t.dimensions_in_tiles.x),
-                               (tile_offset / s->m->t.dimensions_in_tiles.x)));
+                         VEC2I((tile_offset % s->m->t->dimensions_in_tiles.x),
+                               (tile_offset / s->m->t->dimensions_in_tiles.x)));
 
         s->m->tiles[(s->tile_pos->y * s->m->dimensions.x) + s->tile_pos->x] =
             tile;
-        Vec2I result =
-            s->m->tiles[(s->tile_pos->y * s->m->dimensions.x) + s->tile_pos->x];
-
         response.status = POP;
     } break;
     case ESCAPE:
@@ -88,11 +88,13 @@ static LayerEventResponse handle_input(void* state, Event e) {
 }
 
 static void render(void* state) {
+    assert(state);
+
     TileListState* s = (TileListState*)state;
 
     s->r->draw_rect_filled(
-        s->r->state, tile_coords(VEC2I(2, 2), s->m->t.tile_dimensions.x, NW),
-        tile_coords(VEC2I(27, 17), s->m->t.tile_dimensions.x, SE), WHITE,
+        s->r->state, tile_coords(VEC2I(2, 2), s->m->t->tile_dimensions.x, NW),
+        tile_coords(VEC2I(27, 17), s->m->t->tile_dimensions.x, SE), WHITE,
         (RGBA){.r = 0xAF, .g = 0xAF, .b = 0xAF, .a = 0xAF});
 
     // First check if they attempted to scroll past the end
@@ -103,9 +105,9 @@ static void render(void* state) {
     // When the user does scroll down the last row of tiles may be
     // incomplete, check this and move the the last tile if so
     if (s->list_scroll_pos == s->rows_of_tiles - (s->num_rendered_rows - 1) &&
-        s->cursor_pos.y == s->num_rendered_rows - 1) {
+        (size_t)s->cursor_pos.y == s->num_rendered_rows - 1) {
         // Check how many tiles are being rendered in the last row
-        const int last_row_tiles = s->m->t.num_tiles % s->tiles_per_row;
+        const int last_row_tiles = s->m->t->num_tiles % s->tiles_per_row;
 
         if (s->cursor_pos.x >= last_row_tiles) {
             s->cursor_pos.x = last_row_tiles - 1;
@@ -113,16 +115,18 @@ static void render(void* state) {
     }
 
     // Now dsw all of the tiles that will fit
-    int starting_tile_index = s->list_scroll_pos * s->tiles_per_row;
-    Vec2I tile = VEC2I(starting_tile_index % (s->m->t.dimensions_in_tiles.x),
-                       (starting_tile_index / (s->m->t.dimensions_in_tiles.x)));
+    const int starting_tile_index = s->list_scroll_pos * s->tiles_per_row;
+    Vec2I tile =
+        VEC2I(starting_tile_index % (s->m->t->dimensions_in_tiles.x),
+              (starting_tile_index / (s->m->t->dimensions_in_tiles.x)));
 
     for (size_t row = 3; row < 17; row += 2) {
         for (size_t col = 3; col < 27; col += 2) {
             // Don't dsw past the end of the tilemap
-            if ((tile.y * (s->m->t.dimensions.x / s->m->t.tile_dimensions.x)) +
-                    tile.x >=
-                s->m->t.num_tiles) {
+            if ((tile.y *
+                 (s->m->t->dimensions.x / s->m->t->tile_dimensions.x)) +
+                    (size_t)tile.x >=
+                s->m->t->num_tiles) {
                 break;
             }
 
@@ -130,7 +134,7 @@ static void render(void* state) {
                             tile, 0, 0);
 
             tile.x++;
-            if (tile.x == s->m->t.dimensions.x / s->m->t.tile_dimensions.x) {
+            if (tile.x == s->m->t->dimensions.x / s->m->t->tile_dimensions.x) {
                 tile.x = 0;
                 tile.y++;
             }
@@ -138,13 +142,13 @@ static void render(void* state) {
     }
 
     // Dsw tile picker
-    Vec2I picker_dsw_nw = vec2i_add(
+    const Vec2I picker_dsw_nw = vec2i_add(
         tile_coords(vec2i_add(vec2i_mul(s->cursor_pos, 2), VEC2I(3, 3)),
-                    s->m->t.tile_dimensions.x, NW),
+                    s->m->t->tile_dimensions.x, NW),
         3);
-    Vec2I picker_dsw_se = vec2i_add(
+    const Vec2I picker_dsw_se = vec2i_add(
         tile_coords(vec2i_add(vec2i_mul(s->cursor_pos, 2), VEC2I(3, 3)),
-                    s->m->t.tile_dimensions.x, SE),
+                    s->m->t->tile_dimensions.x, SE),
         5);
     s->r->draw_rect(s->r->state, picker_dsw_nw, picker_dsw_se,
                     (RGBA){.r = 0xFF, .g = 0xFF, .b = 0x00, .a = 0x95});
@@ -153,6 +157,8 @@ static void render(void* state) {
 }
 
 static void deinit(void* state) {
+    assert(state);
+
     TileListState* s = (TileListState*)state;
     free(s);
 }
@@ -165,7 +171,7 @@ Layer tile_selection_list_init(Renderer* r, Map* m, Vec2I* tile_pos) {
     s->tile_pos = tile_pos;
 
     s->tiles_per_row = ((27 - 3) / 2);
-    s->rows_of_tiles = m->t.num_tiles / s->tiles_per_row;
+    s->rows_of_tiles = m->t->num_tiles / s->tiles_per_row;
     s->num_rendered_rows = (17 - 3) / 2;
 
     return (Layer){

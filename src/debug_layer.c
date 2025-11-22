@@ -2,16 +2,19 @@
 #include "layer.h"
 #include "map.h"
 #include "renderer.h"
+#include <assert.h>
 
 typedef struct DebugState {
     Renderer* r;
-    Map* m;
-    Vec2I* tile_pos;
+    const Map* m;
+    const Vec2I* tile_pos;
 
     int attribute_overlay;
 } DebugState;
 
 static LayerEventResponse handle_input(void* state, Event e) {
+    assert(state);
+
     DebugState* s = (DebugState*)state;
 
     LayerEventResponse response = {0};
@@ -30,21 +33,23 @@ static LayerEventResponse handle_input(void* state, Event e) {
 }
 
 static void render(void* state) {
+    assert(state);
+
     DebugState* s = (DebugState*)state;
 
     if (s->attribute_overlay != TILE_NORMAL) {
         // Draw a blue tint over all tiles with the currently selected
         // attribute
-        for (size_t row = 0; row < s->m->dimensions.y; row++) {
-            for (size_t col = 0; col < s->m->dimensions.x; col++) {
+        for (size_t row = 0; row < (size_t)s->m->dimensions.y; row++) {
+            for (size_t col = 0; col < (size_t)s->m->dimensions.x; col++) {
                 size_t index = (row * s->m->dimensions.x) + col;
                 if (s->m->tile_attributes[index] &
                     (1 << (s->attribute_overlay - 1))) {
                     Vec2I pos = VEC2I(col, row);
                     s->r->draw_rect_filled(
                         s->r->state,
-                        tile_coords(pos, s->m->t.tile_dimensions.x, NW),
-                        tile_coords(pos, s->m->t.tile_dimensions.x, SE),
+                        tile_coords(pos, s->m->t->tile_dimensions.x, NW),
+                        tile_coords(pos, s->m->t->tile_dimensions.x, SE),
                         (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a = 0x45},
                         (RGBA){.r = 0x00, .b = 0xFF, .g = 0x00, .a = 0x45});
                 }
@@ -81,17 +86,21 @@ static void render(void* state) {
         printf("none");
     }
     printf("\r\n");
-    map_tile_attributes_debug(*s->m, *s->tile_pos, buf, 4096);
+    map_tile_attributes_debug(s->m, *s->tile_pos, buf, 4096);
     printf("%s\r\n", buf);
 }
 
 static void deinit(void* state) {
+    assert(state);
+
     DebugState* s = (DebugState*)state;
     free(s);
 }
 
 Layer debug_layer_init(Renderer* r, Map* m, Vec2I* tile_pos) {
     DebugState* s = calloc(1, sizeof(*s));
+    assert(s);
+
     s->r = r;
     s->m = m;
     s->tile_pos = tile_pos;

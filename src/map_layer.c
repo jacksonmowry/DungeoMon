@@ -1,4 +1,3 @@
-#include "debug_layer.h"
 #include "layer.h"
 #include "map.h"
 #include "renderer.h"
@@ -20,6 +19,8 @@ typedef struct MapState {
 } MapState;
 
 static LayerEventResponse handle_input(void* state, Event e) {
+    assert(state);
+
     MapState* s = (MapState*)state;
     LayerEventResponse response = {0};
 
@@ -90,26 +91,34 @@ static LayerEventResponse handle_input(void* state, Event e) {
 }
 
 static void render(void* state) {
+    assert(state);
+
     MapState* s = (MapState*)state;
 
-    s->r->draw_map(s->r->state, *s->m);
+    s->r->draw_map(s->r->state, s->m);
 
     // Dsw red outline
     s->r->draw_rect(s->r->state,
-                    tile_coords(s->tile_pos, s->m->t.tile_dimensions.x, NW),
-                    tile_coords(s->tile_pos, s->m->t.tile_dimensions.x, SE),
+                    tile_coords(s->tile_pos, s->m->t->tile_dimensions.x, NW),
+                    tile_coords(s->tile_pos, s->m->t->tile_dimensions.x, SE),
                     (RGBA){.r = 0xFF, .a = 0x95});
 
     return;
 }
 
 static void deinit(void* state) {
+    assert(state);
+
     MapState* s = (MapState*)state;
     free(s);
 }
 
 Layer map_layer_init(Renderer* r, Map* m) {
+    assert(r);
+    assert(m);
+
     MapState* s = calloc(1, sizeof(*s));
+    assert(s);
 
     s->m = m;
     s->r = r;

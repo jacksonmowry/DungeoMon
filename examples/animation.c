@@ -25,7 +25,6 @@ int main(int argc, char* argv[]) {
     const size_t height_in_tiles = height / tile_dim;
 
     size_t render_scale = 2;
-    const size_t font_scale = 1;
 
     // Update render scale is user requests
     if (argc > 1) {
@@ -75,8 +74,9 @@ int main(int argc, char* argv[]) {
         // Check if would collide, if so update velocity
         Vec2I new_pos = vec2i_add(red_box, red_box_velocity);
         bool horizontal_collision =
-            new_pos.x < 0 || new_pos.x >= width_in_tiles;
-        bool vertical_collision = new_pos.y < 0 || new_pos.y >= height_in_tiles;
+            new_pos.x < 0 || (size_t)new_pos.x >= width_in_tiles;
+        bool vertical_collision =
+            new_pos.y < 0 || (size_t)new_pos.y >= height_in_tiles;
         red_box_velocity =
             vec2i_mul(red_box_velocity, VEC2I(horizontal_collision ? -1 : 1,
                                               vertical_collision ? -1 : 1));
@@ -86,7 +86,6 @@ int main(int argc, char* argv[]) {
         // Currently render clears the pixel buffer
         r.render(r.state);
 
-    SLEEP:;
         struct timespec frame_end = {0};
         if (clock_gettime(CLOCK_REALTIME, &frame_end) == -1) {
             perror("clock_gettime");
@@ -99,7 +98,6 @@ int main(int argc, char* argv[]) {
         nanosleep(&sleep_length, NULL);
     }
 
-cleanup:
     r.cleanup(r.state);
     printf("\n");
 }

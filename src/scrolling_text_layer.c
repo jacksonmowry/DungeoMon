@@ -18,6 +18,8 @@ typedef struct ScrollingTextLayerState {
 } ScrollingTextLayerState;
 
 static LayerEventResponse handle_input(void* state, Event e) {
+    assert(state);
+
     ScrollingTextLayerState* s = (ScrollingTextLayerState*)state;
 
     LayerEventResponse response = {0};
@@ -42,6 +44,8 @@ static LayerEventResponse handle_input(void* state, Event e) {
 }
 
 static void render(void* state) {
+    assert(state);
+
     ScrollingTextLayerState* s = (ScrollingTextLayerState*)state;
 
     if (s->top) {
@@ -78,13 +82,19 @@ static void render(void* state) {
 }
 
 static void deinit(void* state) {
+    assert(state);
+
     ScrollingTextLayerState* s = (ScrollingTextLayerState*)state;
 
     free(s);
 }
 
 Layer scrolling_text_layer_init(Renderer* r, const char* message, bool top) {
+    assert(r);
+    assert(message);
+
     ScrollingTextLayerState* s = calloc(1, sizeof(*s));
+    assert(s);
 
     s->top = top;
     s->r = r;
@@ -96,7 +106,7 @@ Layer scrolling_text_layer_init(Renderer* r, const char* message, bool top) {
     size_t line_len = 0;
 
     for (size_t i = 0; i < message_len + 1; i++) {
-        char c = i == message_len ? ' ' : message[i];
+        const char c = i == message_len ? ' ' : message[i];
 
         if (isspace(c)) {
             word_buf[word_len++] = ' ';

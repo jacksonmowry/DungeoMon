@@ -19,6 +19,7 @@
  *
  */
 
+#include <assert.h>
 #include <fcntl.h>
 #include <png.h>
 #include <stddef.h>
@@ -110,8 +111,9 @@ RGBA* read_pam_file(const char* filename, Vec2I* dimensions) {
     }
 
     RGBA* pixels = malloc(width * height * sizeof(*pixels));
-    for (size_t row = 0; row < height; row++) {
-        for (size_t col = 0; col < width; col++) {
+    assert(pixels);
+    for (size_t row = 0; row < (size_t)height; row++) {
+        for (size_t col = 0; col < (size_t)width; col++) {
             size_t index = (row * width) + col;
 
             fread(pixels + index, sizeof(uint32_t), 1, fp);
