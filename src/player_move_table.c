@@ -9,6 +9,7 @@
 #include "punch.h"
 #include "sword_swing.h"
 #include <assert.h>
+#include <stdio.h>
 
 EntityUpdate player_move_lookup(Player* p, PLAYER_MOVES move) {
     assert(p);
@@ -47,4 +48,6 @@ EntityUpdate player_move_lookup(Player* p, PLAYER_MOVES move) {
             return energy_beam();
         }
     }
+
+    assert(false);
 }

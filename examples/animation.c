@@ -13,6 +13,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/time.h>
+#include <threads.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -44,18 +46,8 @@ int main(int argc, char* argv[]) {
     // 15FPS
     struct timespec frame_time = timespec_from_double(1 / (double)15);
 
-    struct timespec frame_prev = {0};
-    if (clock_gettime(CLOCK_REALTIME, &frame_prev) == -1) {
-        perror("clock_gettime");
-        exit(1);
-    }
-
     while (true) {
-        struct timespec frame_start = {0};
-        if (clock_gettime(CLOCK_REALTIME, &frame_start) == -1) {
-            perror("clock_gettime");
-            exit(1);
-        }
+        struct timespec frame_start = timespec_get_time();
         struct timespec next_frame = timespec_add(frame_start, frame_time);
 
         printf("\033[H");
@@ -86,16 +78,10 @@ int main(int argc, char* argv[]) {
         // Currently render clears the pixel buffer
         r.render(r.state);
 
-        struct timespec frame_end = {0};
-        if (clock_gettime(CLOCK_REALTIME, &frame_end) == -1) {
-            perror("clock_gettime");
-            exit(1);
-        }
-
-        frame_prev = frame_start;
+        struct timespec frame_end = timespec_get_time();
 
         struct timespec sleep_length = timespec_sub(next_frame, frame_end);
-        nanosleep(&sleep_length, NULL);
+        thrd_sleep(&sleep_length, NULL);
     }
 
     r.cleanup(r.state);

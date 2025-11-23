@@ -6,6 +6,7 @@
 #include "weapon.h"
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 // WARNING: Not sure what needs to be in the player state
 
@@ -17,40 +18,30 @@
 #define STARTING_PLAYER_SPELLS 5
 #define STARTING_PLAYER_WEAPONS 5
 
-static Damages WeaponLookup(int id) { return (Damages){}; }
+static Damages WeaponLookup(int id) {
+    (void)id;
+    return (Damages){};
+}
 
 void move(Player* p, Vec2 velocity, int x_pos, int y_pos) {
+    (void)p;
+    (void)velocity;
+    (void)x_pos;
+    (void)y_pos;
     fprintf(stderr, "Called Move\n");
     return;
 }
 void speak(Player* p, const char* statement) {
+    assert(p);
     assert(statement);
     printf("%s\n", statement);
     return;
 }
 
-EntityUpdate produce_update(Player* p) {
-    PLAYER_MOVES move;
-    printf("Select Player Move.\n");
-    scanf("%d", &move);
-    return player_move_lookup(p, move);
-}
-
-static void recieve_update(Player* player, EntityUpdate player_update) {
-    if (abs(player_update.diff_health) > player->armor) {
-        player->health += (player_update.diff_health + player->armor);
-    }
-    player->mana += player_update.diff_mana;
-    player->armor += player_update.diff_armor;
-    // player->num_spells += player_update.diff_num_spells;
-    // player->num_weapons += player_update.diff_num_weapons;
-    return;
-}
-static void player_death_sequence() {}
-
 // NOTE: Layout for more generalized attacks.
 static EntityUpdate PlayerAttack(const Player* player, const Entity enemy,
                                  int weapon_id, int spell_id) {
+    assert(player);
     EntityUpdate update = {0};
     if (weapon_id != -1) {
         const Damages types = WeaponLookup(weapon_id);
@@ -64,6 +55,33 @@ static EntityUpdate PlayerAttack(const Player* player, const Entity enemy,
     }
 
     return update;
+}
+
+EntityUpdate produce_update(Player* p) {
+    PLAYER_MOVES move;
+    printf("Select Player Move.\n");
+    scanf("%d", (int*)&move);
+
+    EntityUpdate ignored = PlayerAttack(p, (Entity){0}, 0, 0);
+    (void)ignored;
+    return player_move_lookup(p, move);
+}
+
+static void player_death_sequence() {}
+
+static void recieve_update(Player* player, EntityUpdate player_update) {
+    if (abs(player_update.diff_health) > player->armor) {
+        player->health += (player_update.diff_health + player->armor);
+    }
+    player->mana += player_update.diff_mana;
+    player->armor += player_update.diff_armor;
+    // player->num_spells += player_update.diff_num_spells;
+    // player->num_weapons += player_update.diff_num_weapons;
+
+    if (player->health <= 0) {
+        player_death_sequence();
+    }
+    return;
 }
 
 Player player_init(void) {

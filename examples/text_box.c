@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <termios.h>
+#include <threads.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -76,19 +77,11 @@ void* render_thread(void* arg) {
 
     struct timespec frame_time = timespec_from_double(1 / (double)30);
 
-    struct timespec frame_prev = {0};
-    if (clock_gettime(CLOCK_REALTIME, &frame_prev) == -1) {
-        perror("clock_gettime");
-        exit(1);
-    }
+    struct timespec frame_prev = timespec_get_time();
     frame_prev = timespec_sub(frame_prev, timespec_from_double(1 / 30.0));
 
     while (layers != 0) {
-        struct timespec frame_start = {0};
-        if (clock_gettime(CLOCK_REALTIME, &frame_start) == -1) {
-            perror("clock_gettime");
-            exit(1);
-        }
+        struct timespec frame_start = timespec_get_time();
         struct timespec next_frame = timespec_add(frame_start, frame_time);
         double framerate =
             1 / timespec_to_double(timespec_sub(frame_start, frame_prev));
@@ -190,16 +183,12 @@ void* render_thread(void* arg) {
         printf("FPS %.2f\r\n", framerate);
 
     SLEEP:;
-        struct timespec frame_end = {0};
-        if (clock_gettime(CLOCK_REALTIME, &frame_end) == -1) {
-            perror("clock_gettime");
-            exit(1);
-        }
+        struct timespec frame_end = timespec_get_time();
 
         frame_prev = frame_start;
 
         struct timespec sleep_length = timespec_sub(next_frame, frame_end);
-        nanosleep(&sleep_length, NULL);
+        thrd_sleep(&sleep_length, NULL);
     }
 
 CLEANUP:
@@ -248,18 +237,8 @@ int main(int argc, char* argv[]) {
 
     struct timespec frame_time = timespec_from_double(1 / (double)60);
 
-    struct timespec frame_prev = {0};
-    if (clock_gettime(CLOCK_REALTIME, &frame_prev) == -1) {
-        perror("clock_gettime");
-        exit(1);
-    }
-
     while (!ra.done) {
-        struct timespec frame_start = {0};
-        if (clock_gettime(CLOCK_REALTIME, &frame_start) == -1) {
-            perror("clock_gettime");
-            exit(1);
-        }
+        struct timespec frame_start = timespec_get_time();
         struct timespec next_frame = timespec_add(frame_start, frame_time);
 
         // Window resizing
@@ -336,16 +315,10 @@ int main(int argc, char* argv[]) {
         }
 
     SLEEP:;
-        struct timespec frame_end = {0};
-        if (clock_gettime(CLOCK_REALTIME, &frame_end) == -1) {
-            perror("clock_gettime");
-            exit(1);
-        }
-
-        frame_prev = frame_start;
+        struct timespec frame_end = timespec_get_time();
 
         struct timespec sleep_length = timespec_sub(next_frame, frame_end);
-        nanosleep(&sleep_length, NULL);
+        thrd_sleep(&sleep_length, NULL);
     }
 
 CLEANUP:

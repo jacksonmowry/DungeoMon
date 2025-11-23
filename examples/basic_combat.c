@@ -18,6 +18,7 @@ Goblin moves: 0 - Stab Once  (10 dmg - player armor)
 #include "entity.h"
 #include "goblin.h"
 #include "player.h"
+#include <stdio.h>
 
 int main() {
     Entity gob = goblin_init(10000, 10, 10, 10);

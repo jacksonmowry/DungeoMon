@@ -65,6 +65,12 @@
 
 #define NSEC_PER_SEC 1000000000
 
+struct timespec timespec_get_time() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return timespec_from_timeval(tv);
+}
+
 /** \fn struct timespec timespec_add(struct timespec ts1, struct timespec ts2)
  *  \brief Returns the result of adding two timespec structures.
  */

@@ -1,6 +1,7 @@
 #include "tile.h"
 #include "png_handler.h"
 #include "vec.h"
+#include <limits.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,13 +68,18 @@ Tilemap tilemap_load(const char* pam_path, const char* tile_names_path,
     }
 
 SKIP:;
-    char* name = realpath(pam_path, NULL);
+    char buf[256] = {0};
+    if (!strncmp("./", pam_path, 2)) {
+        strcat(buf, pam_path);
+    } else {
+        strcat(buf, "./");
+        strcat(buf, pam_path);
+    }
+    char* name = buf;
     char* last_slash = strrchr(name, '/');
     last_slash++;
     *strrchr(last_slash, '.') = '\0';
     const char* tilemap_id = strdup(last_slash);
-
-    free(name);
 
     return (Tilemap){
         .id = tilemap_id,

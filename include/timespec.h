@@ -40,6 +40,8 @@
 extern "C" {
 #endif
 
+struct timespec timespec_get_time();
+
 struct timespec timespec_add(struct timespec ts1, struct timespec ts2);
 struct timespec timespec_sub(struct timespec ts1, struct timespec ts2);
 struct timespec timespec_mod(struct timespec ts1, struct timespec ts2);

@@ -5,7 +5,7 @@
 # @version 0.1
 .SUFFIXES:
 
-CFLAGS += -Wall -Wextra -pedantic -Werror
+CFLAGS += -Wall -Wextra -Werror -std=c23
 
 all: examples
 
@@ -49,7 +49,7 @@ obj/timespec.o: src/timespec.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
 obj/sx.o: src/sx.c
-	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude -lsixel -lpthread
+	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
 obj/tile.o: src/tile.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
@@ -61,7 +61,7 @@ obj/color.o: src/color.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
 obj/png_handler.o: src/png_handler.c
-	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude -lpng
+	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
 
 obj/events.o: src/events.c
 	$(CC) $(CFLAGS) $^ -c -o $@ -Iinclude
